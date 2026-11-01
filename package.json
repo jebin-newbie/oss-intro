@@ -1,0 +1,12 @@
+{
+  "name": "oss-intro",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx --yes serve -l 5173 .",
+    "render": "node tools/render.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.48.0"
+  }
+}

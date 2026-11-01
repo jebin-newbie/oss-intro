@@ -1,0 +1,7 @@
+node_modules/
+out/
+.DS_Store
+*.log
+# 원본 리소스는 절대 커밋하지 않기 (합성본만 assets/bg 에 둠)
+source/
+raw/

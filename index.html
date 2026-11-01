@@ -1,0 +1,1094 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light}body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>대마과 요원 파일</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;600&family=Instrument+Serif:ital@0;1&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<style>
+/* Layout: portrait 1200×1700 film stage on the left (sticky), transport under it, template editor on the right.
+   Stage style rule: every scene sits on one big Anton type layer; foreground is paper cut-outs, film scraps and ink tags. */
+:root{
+  --ui-bg:#E8E6E1; --ui-panel:#F5F4F1; --ui-fg:#1A1D1A; --ui-muted:#676B64; --ui-line:#CDCAC3;
+  --ui-accent:#C54F28; --ui-accent-fg:#FFFFFF; --ui-green:#3F7A37; --ui-field:#FFFFFF;
+  --f-sans:"Pretendard","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;
+  --f-cond:"Anton",Impact,"Arial Narrow",sans-serif;
+  --f-serif:"Instrument Serif","Times New Roman",serif;
+  --f-mono:"IBM Plex Mono","Pretendard",ui-monospace,Menlo,monospace;
+  --stage-w:min(600px,calc((100dvh - 150px) * 0.70588));
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --ui-bg:#111311; --ui-panel:#1A1D19; --ui-fg:#E7E6E1; --ui-muted:#9A9E95; --ui-line:#30342E;
+  --ui-accent:#E2683E; --ui-accent-fg:#14100E; --ui-green:#9CC75A; --ui-field:#121411; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --ui-bg:#111311; --ui-panel:#1A1D19; --ui-fg:#E7E6E1; --ui-muted:#9A9E95; --ui-line:#30342E;
+  --ui-accent:#E2683E; --ui-accent-fg:#14100E; --ui-green:#9CC75A; --ui-field:#121411; color-scheme:dark }
+@font-face{font-family:"Pretendard";font-style:normal;font-weight:45 920;font-display:swap;src:url(fonts/pretendard-sub.woff2) format("woff2")}
+
+html,body{background:var(--ui-bg);color:var(--ui-fg)}
+body{font-family:var(--f-sans);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.app{max-width:1280px;margin:0 auto;display:grid;gap:16px}
+.app-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 20px}
+.app-head h1{margin:0;font:800 24px/1.15 var(--f-sans);letter-spacing:-.01em}
+.app-head h1 span{font-weight:500;opacity:.55}
+.app-head p{margin:0;font:500 12px/1.4 var(--f-mono);color:var(--ui-muted);letter-spacing:.04em}
+.layout{display:grid;grid-template-columns:var(--stage-w) minmax(0,1fr);gap:24px;align-items:start}
+.col-stage{position:sticky;top:12px;display:grid;gap:12px;min-width:0}
+.col-edit{display:grid;gap:14px;min-width:0}
+@media (max-width:900px){ .layout{grid-template-columns:minmax(0,1fr)} .col-stage{position:static;max-width:560px;width:100%;margin:0 auto} }
+
+.stage-wrap{position:relative;width:100%;max-width:100%;aspect-ratio:1200/1700;background:#0d0f0d;overflow:hidden;border-radius:4px}
+.loading{position:absolute;inset:0;display:grid;place-items:center;color:#B0D457;font:600 12px/1 var(--f-mono);letter-spacing:.2em;background:#0d0f0d;z-index:100}
+
+.transport{display:grid;grid-template-columns:auto auto 1fr auto;align-items:center;gap:10px}
+.btn{appearance:none;border:1px solid var(--ui-line);background:var(--ui-panel);color:var(--ui-fg);font:600 13px/1 var(--f-sans);padding:9px 12px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{border-color:var(--ui-muted)}
+.btn:focus-visible,.chip:focus-visible,input:focus-visible,textarea:focus-visible,.seg:focus-visible{outline:2px solid var(--ui-accent);outline-offset:2px}
+.btn.primary{background:var(--ui-accent);border-color:var(--ui-accent);color:var(--ui-accent-fg)}
+.btn svg{width:14px;height:14px}
+.time{font:600 12px/1 var(--f-mono);font-variant-numeric:tabular-nums;color:var(--ui-muted);text-align:right}
+.scrub{grid-column:1/-1;min-width:0}
+.scrub input[type=range]{width:100%;margin:0;accent-color:var(--ui-accent)}
+.segs{display:flex;margin-top:4px;font:500 11px/1 var(--f-sans);color:var(--ui-muted)}
+.seg{appearance:none;background:none;border:0;border-left:1px solid var(--ui-line);color:inherit;font:inherit;text-align:left;padding:4px 6px;cursor:pointer;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;min-width:0}
+.seg:hover,.seg.on{color:var(--ui-fg)}
+.seg.on{box-shadow:inset 0 2px 0 var(--ui-accent)}
+.loop{display:inline-flex;align-items:center;gap:6px;font:500 12px/1 var(--f-sans);color:var(--ui-muted);white-space:nowrap}
+
+.chars{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chars .lab{font:600 11px/1 var(--f-mono);letter-spacing:.14em;color:var(--ui-muted);margin-right:4px}
+.chip{appearance:none;border:1px solid var(--ui-line);background:var(--ui-panel);color:var(--ui-fg);border-radius:999px;padding:7px 12px;font:600 13px/1 var(--f-sans);cursor:pointer;display:inline-flex;gap:8px;align-items:center}
+.chip b{font:600 11px/1 var(--f-mono);color:var(--ui-muted)}
+.chip.on{background:var(--ui-fg);color:var(--ui-bg);border-color:var(--ui-fg)}
+.chip.on b{color:var(--ui-bg);opacity:.7}
+.chip.add{border-style:dashed;color:var(--ui-muted)}
+.editor{background:var(--ui-panel);border:1px solid var(--ui-line);border-radius:8px;container-type:inline-size}
+.editor>summary{cursor:pointer;padding:12px 16px;font:700 14px/1.2 var(--f-sans);list-style:none;display:flex;justify-content:space-between;gap:6px 12px;flex-wrap:wrap}
+.editor>summary::-webkit-details-marker{display:none}
+.editor>summary span{font:500 12px/1.2 var(--f-sans);color:var(--ui-muted)}
+.ed-body{display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:20px;padding:4px 16px 18px}
+@container (max-width:620px){ .ed-body{grid-template-columns:minmax(0,1fr)} }
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px 12px;min-width:0;align-content:start}
+.field{display:grid;gap:5px;min-width:0}
+.field.wide{grid-column:1/-1}
+.field label,.side h3{font:600 11px/1.2 var(--f-sans);color:var(--ui-muted);letter-spacing:.02em;margin:0}
+.field input,.field textarea{width:100%;box-sizing:border-box;border:1px solid var(--ui-line);background:var(--ui-field);color:var(--ui-fg);border-radius:6px;padding:8px 9px;font:400 13px/1.5 var(--f-sans)}
+.field textarea{min-height:92px;resize:vertical}
+.field textarea.tall{min-height:150px}
+.hint{font:400 11.5px/1.5 var(--f-sans);color:var(--ui-muted);margin:0}
+.side{display:grid;gap:14px;align-content:start;min-width:0}
+.facepick{position:relative;background:#0d0f0d;border-radius:6px;overflow:hidden;cursor:crosshair;height:300px}
+.facepick canvas{display:block;margin:0 auto;height:100%}
+.filebtn{position:relative;overflow:hidden}
+.filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.row-btns{display:flex;flex-wrap:wrap;gap:8px}
+.exp-row{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.exp-row .btn{justify-content:center;padding:8px 4px;font-size:12px}
+.status-line{font:500 12px/1.4 var(--f-sans);color:var(--ui-green);min-height:1.4em;margin:0}
+.copybox{width:100%;box-sizing:border-box;min-height:120px;font:400 11px/1.5 var(--f-mono);border:1px solid var(--ui-line);background:var(--ui-field);color:var(--ui-fg);border-radius:6px;padding:8px}
+
+/* =================== STAGE (fixed 1200×1700 world) =================== */
+#stage{position:absolute;left:0;top:0;width:1200px;height:1700px;overflow:hidden;transform-origin:0 0;
+  --paper:#F2F1EF;--paper2:#E4E2DC;--ink:#121512;--black:#0B0D0B;--or:#D8582F;--lime:#B0D457;--gr:#4A7D45;--gr-d:#183A22;
+  background:var(--paper);color:var(--ink);font-family:var(--f-sans);-webkit-font-smoothing:antialiased;user-select:none}
+#stage img{max-width:none}
+#scenes{position:absolute;inset:0}
+.scene{position:absolute;inset:0;overflow:hidden;visibility:hidden}
+.fill{position:absolute;inset:0}
+.paper{background:var(--paper)}
+.grid-bg{background-image:linear-gradient(rgba(18,21,18,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(18,21,18,.07) 1px,transparent 1px);background-size:30px 30px}
+.tex{position:absolute;background-repeat:no-repeat;pointer-events:none}
+.abs{position:absolute}
+#frameline{position:absolute;left:0;right:0;height:30px;top:0;background:#0d0f0d;transform:translateY(-40px);z-index:20}
+.bigtype{position:absolute;inset:0;pointer-events:none}
+.bt{position:absolute;white-space:nowrap;font:400 300px/.86 var(--f-cond);letter-spacing:-.005em}
+.bt.o{color:transparent}
+
+.strip{position:absolute;left:0;right:0;height:42px;background:#0d0f0d;z-index:30;overflow:hidden}
+.strip.top{top:0}.strip.bottom{bottom:0}
+.holes{position:absolute;left:0;right:0;height:15px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='15'%3E%3Crect x='12' y='0' width='16' height='15' rx='3' fill='%23F2F1EF'/%3E%3C/svg%3E");background-size:40px 15px;background-repeat:repeat-x}
+.strip.top .holes{top:6px}.strip.bottom .holes{bottom:6px}
+.edge{display:none;position:absolute;left:0;white-space:nowrap;font:600 9px/1 var(--f-mono);letter-spacing:.24em;color:var(--lime)}
+.edge em{font-style:normal;color:var(--or)}
+.strip.top .edge{bottom:4px}.strip.bottom .edge{top:4px}
+
+#fx{position:absolute;inset:0;pointer-events:none;z-index:60;mix-blend-mode:overlay;opacity:.5}
+#fxd{position:absolute;inset:0;pointer-events:none;z-index:59;mix-blend-mode:screen;opacity:0}
+#vignette{position:absolute;inset:0;pointer-events:none;z-index:61;background:radial-gradient(ellipse at 50% 50%,transparent 60%,rgba(10,12,10,.26) 100%)}
+#flicker{position:absolute;inset:0;pointer-events:none;z-index:62;background:#0b0d0b;opacity:0}
+#flash{position:absolute;inset:0;pointer-events:none;z-index:63;background:#F4F2EC;opacity:0}
+#glitch{position:absolute;inset:0;pointer-events:none;z-index:26;display:none}
+#glitch .gv{position:absolute;inset:0;background-repeat:no-repeat;background-size:19200px 1700px;mix-blend-mode:screen}
+#glitch .ga{background-image:url(assets/fx/glitch_a.webp)}
+#glitch .gb{background-image:url(assets/fx/glitch_b.webp)}
+.osil{position:absolute;opacity:0;pointer-events:none;background:#D8582F;-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
+.gscene{position:absolute;inset:0;visibility:hidden}
+.gbg{position:absolute;inset:-40px;background:#050605 url(assets/fx/glitch_a.webp) 0 0/1600% 100% no-repeat;filter:contrast(1.1) brightness(1.1)}
+.gfill{position:absolute;display:none;pointer-events:none;background:#050605 url(assets/fx/glitch_b.webp) 0 0/1600% 100% no-repeat;filter:brightness(1.6) contrast(1.15) saturate(1.2);-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
+#iris{position:absolute;inset:0;pointer-events:none;z-index:25;display:none}
+#fadeout{position:absolute;inset:0;pointer-events:none;z-index:64;opacity:0;background:#0B0D0B}
+
+/* ----- S0 slate: black, heavy grain, big faint type ----- */
+#s0{background:var(--black)}
+#s0 .tex{filter:invert(1);mix-blend-mode:screen}
+#s0 .aerial{left:-60px;top:80px;width:560px;height:982px;background-size:cover;opacity:.07}
+#s0 .eyes{right:-110px;top:520px;width:600px;height:960px;background-size:contain;opacity:.06}
+#s0 .bt{color:rgba(242,241,239,.17);filter:blur(1.2px);font-size:290px}
+#s0 .bt .g{color:rgba(176,212,87,.24)}#s0 .bt .r{color:rgba(216,88,47,.26)}
+#s0 .bt.o{-webkit-text-stroke:3px rgba(242,241,239,.34);color:transparent}
+#s0 .bt.k{font:800 58px/1 var(--f-sans);letter-spacing:.4em;color:rgba(242,241,239,.14);filter:blur(.8px)}
+#s0 .bt.m{font:600 26px/1.45 var(--f-mono);letter-spacing:.28em;color:rgba(242,241,239,.12);filter:blur(.6px)}
+.clap{position:absolute;left:232px;top:500px;width:736px;height:707px}
+.clap img{position:absolute;left:0;top:0;width:736px;height:707px}
+.clap-arm{transform-origin:92px 224px}
+.ck{position:absolute;font:700 30px/34px var(--f-sans);letter-spacing:.02em;color:#F1EEE4;white-space:nowrap;transform:rotate(-8deg);transform-origin:0 50%;opacity:.94}
+
+/* ----- S1 giant paper silhouette over a blurred poster montage ----- */
+#s0{z-index:3}#s1{z-index:1}#s2{z-index:2}
+#s1{background:#2a120a}
+.s1cam{position:absolute;inset:0;transform-origin:600px 900px}
+.poster{position:absolute;inset:-60px;background-size:cover;background-position:50% 40%;opacity:0}
+.s1el{position:absolute;pointer-events:none;opacity:.7;filter:grayscale(1) contrast(1.05)}
+.s1el img{display:block;width:100%;height:auto}
+#s1 .half{inset:-30px;background-size:cover;background-position:50% 40%;mix-blend-mode:multiply;opacity:.72}
+.s1tint{position:absolute;inset:0;background:#E2622F;mix-blend-mode:soft-light;opacity:.85}
+.s1tint.c{mix-blend-mode:color;opacity:.38}
+.s1wash{position:absolute;inset:0;background-color:#F2F1EF;background-image:linear-gradient(rgba(18,21,18,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(18,21,18,.07) 1px,transparent 1px);background-size:30px 30px;opacity:0}
+.spot{position:absolute;width:4000px;height:4000px;margin:-2000px 0 0 -2000px;pointer-events:none;opacity:0;background:radial-gradient(circle at 50% 50%,rgba(255,250,236,.10) 0,rgba(255,250,236,0) 360px,rgba(10,11,10,0) 400px,rgba(10,11,10,.36) 540px,rgba(10,11,10,.64) 760px)}
+.s1glow{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,rgba(240,120,60,.35),transparent 70%);mix-blend-mode:screen}
+.silart{position:absolute;opacity:0}
+.s0bg{position:absolute;inset:0}
+/* ----- quote terminal ----- */
+#sq{background:#050605;z-index:2}
+.term{position:absolute;left:84px;right:84px;top:600px;font:400 24px/1.7 "Nanum Gothic Coding","IBM Plex Mono",ui-monospace,monospace;color:rgba(176,212,87,.75);white-space:pre-wrap;word-break:keep-all}
+.term .q{display:block;margin-top:34px;font:700 96px/1.2 "Nanum Gothic Coding","IBM Plex Mono",ui-monospace,monospace;color:#F2F1EF;letter-spacing:-.02em}
+.term .q b{font-weight:700;color:#B0D457}
+.caret{display:inline-block;width:.55em;height:.95em;background:#B0D457;vertical-align:-.1em;margin-left:.08em}
+.term .meta{position:absolute;left:0;top:-90px;font-size:15px;letter-spacing:.2em;color:rgba(242,241,239,.35)}
+#s1 .bt{color:#170b06;font-size:600px;mix-blend-mode:multiply;opacity:.72}
+#s1 .bt.o{color:transparent;-webkit-text-stroke:4px #170b06}
+#s1 .bt.p{color:#F2E6DC;mix-blend-mode:soft-light;opacity:.9}
+#s1 .bt.v{font-size:300px;transform:rotate(90deg);transform-origin:0 0}
+.neg{position:absolute;height:200px;mix-blend-mode:multiply;opacity:.7;white-space:nowrap}
+.neg img{height:200px;width:auto;display:inline-block}
+.paper-sil{position:absolute;inset:0}
+.psh{position:absolute;filter:blur(9px);opacity:.55}
+.pedge{position:absolute;opacity:.35}
+.sil{position:absolute;-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
+.sil-fill{overflow:hidden;isolation:isolate;background-color:#ECEBE8;background-size:1180px auto;background-position:50% 0;background-repeat:no-repeat}
+.crease{position:absolute;inset:0;background-size:1180px auto;background-position:50% 0;background-repeat:no-repeat;mix-blend-mode:hard-light;opacity:.9}
+.stream{position:absolute;left:-70%;top:-.5%;width:240%;transform:rotate(-6deg);transform-origin:50% 0;mix-blend-mode:multiply}
+.stream .ln{display:block;white-space:nowrap;font:800 50px/62px var(--f-sans);letter-spacing:-.025em;color:#1F3324}
+.stream .ln.en{font-weight:600;letter-spacing:0;text-transform:uppercase;font-size:44px}
+.stream .ln.o{color:var(--or)}
+.s1tex{position:absolute;inset:0;background-size:cover;pointer-events:none}
+.s1tex.a{mix-blend-mode:multiply;opacity:.32}
+.s1tex.b{mix-blend-mode:overlay;opacity:.45}
+
+/* ----- S2 profile card ----- */
+#s2 .bar{position:absolute;inset:0;background-color:var(--gr);
+  background-image:repeating-linear-gradient(45deg,rgba(176,212,87,.3) 0 2px,transparent 2px 56px),repeating-linear-gradient(-45deg,rgba(176,212,87,.3) 0 2px,transparent 2px 56px)}
+#s2 .bar::after{content:"";position:absolute;inset:0;background:radial-gradient(circle,rgba(24,58,34,.6) 2px,transparent 2.4px) 0 0/10px 10px;-webkit-mask:linear-gradient(0deg,#000 0,transparent 26%);mask:linear-gradient(0deg,#000 0,transparent 26%)}
+#s2 .barA{clip-path:polygon(372px 380px,476px 380px,370px 1150px,266px 1150px)}
+#s2 .barB{clip-path:polygon(526px 160px,1180px 160px,1044px 1450px,390px 1450px)}
+.ghost{position:absolute;left:390px;top:160px;width:790px;height:1290px;overflow:hidden;opacity:.32;mix-blend-mode:multiply}
+.ghost img{position:absolute;filter:grayscale(1) contrast(1.25)}
+.slash{position:absolute;height:5px;background:var(--or);transform-origin:0 50%}
+.s2-char{position:absolute;inset:0}
+.s2-char img{position:absolute}
+.s2-char .shadow{filter:brightness(0);opacity:.16}
+.s2-char .olc{display:none}
+#s2 .bt.f{color:rgba(18,21,18,.06);font-size:520px}
+#s2 .bt.rw{font-size:300px;line-height:.84;color:rgba(18,21,18,.11);mix-blend-mode:multiply}
+.kpcbig{position:absolute;left:48px;top:58px;font:400 290px/.8 var(--f-cond);letter-spacing:.005em;white-space:nowrap}
+.emblem{position:absolute;left:62px;top:420px;width:116px;text-align:center}
+.emblem svg{width:116px;height:116px;display:block}
+.emblem span{display:block;font:600 10.5px/1.25 var(--f-mono);letter-spacing:.18em;margin-top:6px}
+.nameblk{position:absolute;left:46px;top:1120px}
+.rank{display:inline-block;background:var(--or);color:#fff;font:700 25px/1 var(--f-sans);padding:11px 36px 11px 15px;clip-path:polygon(0 0,100% 0,calc(100% - 15px) 100%,0 100%)}
+.blk{position:relative;margin-top:6px;display:block;width:fit-content;padding:16px 108px 16px 22px;background:var(--ink);
+  clip-path:polygon(0 4%,8% 0,30% 3%,55% 0,80% 2%,99% 0,100% 30%,98.5% 62%,100% 100%,70% 97%,42% 100%,18% 96%,1% 100%,0 70%,1.2% 40%)}
+.blk .nk{position:relative;font:900 72px/1 var(--f-sans);color:#fff;letter-spacing:-.02em;white-space:nowrap}
+.blk .nk span{display:inline-block}
+.blk svg{position:absolute;right:26px;top:50%;margin-top:-32px;width:64px;height:64px}
+.blk .cur{position:absolute;right:7px;bottom:7px;width:17px;height:17px;margin:0;top:auto}
+.nameblk .nmeta{margin-top:13px;font:600 15px/1 var(--f-mono);letter-spacing:.16em;white-space:nowrap}
+.info{margin-top:16px;width:440px;border-top:2px solid var(--ink)}
+.irow{display:grid;grid-template-columns:96px 1fr;align-items:center;gap:16px;padding:7px 0;border-bottom:1px dashed rgba(18,21,18,.35)}
+.irow .k{background:var(--ink);color:var(--paper);font:700 14px/1 var(--f-sans);padding:6px 8px;text-align:center;white-space:nowrap}
+.irow .v{font:800 24px/1.15 var(--f-sans);letter-spacing:-.015em;min-width:0}
+.kname{position:absolute;left:54px;top:300px;white-space:nowrap}
+.kname b{display:block;font:900 82px/.92 var(--f-sans);letter-spacing:-.045em}
+.kname b+b{color:var(--paper);text-shadow:2.5px 0 var(--ink),-2.5px 0 var(--ink),0 2.5px var(--ink),0 -2.5px var(--ink),1.8px 1.8px var(--ink),-1.8px 1.8px var(--ink),1.8px -1.8px var(--ink),-1.8px -1.8px var(--ink)}
+.kname span{position:relative;display:inline-flex;align-items:center;gap:10px;margin-top:18px;padding:9px 18px 9px 30px;background:var(--or);color:#fff;font:600 22px/1 var(--f-mono);letter-spacing:.16em;clip-path:polygon(14px 0,100% 0,100% 100%,14px 100%,0 50%)}
+.kname span::before{content:"";position:absolute;left:14px;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:var(--paper)}
+.qmark{position:absolute;right:56px;top:40px;font:400 240px/1 var(--f-serif);color:rgba(18,21,18,.3)}
+.quotev{position:absolute;right:40px;top:196px;writing-mode:vertical-rl;font:900 118px/1.02 var(--f-sans);letter-spacing:-.07em;white-space:normal;word-break:keep-all;height:1240px;color:rgba(18,21,18,.26);mix-blend-mode:multiply}
+.deco{position:absolute;left:46px;right:46px;top:1560px;columns:4;column-gap:28px;opacity:.75}
+.deco h5{margin:0 0 6px;font:600 9.5px/1.4 var(--f-mono);letter-spacing:.18em;color:var(--or);border-top:3px solid var(--ink);padding-top:10px}
+.deco p{margin:0 0 6px;font:500 8.6px/1.5 var(--f-mono);letter-spacing:.02em;text-align:justify;text-transform:uppercase;color:#2b302b}
+.deco p.t{font-weight:600;color:var(--ink)}
+.deco i{font-style:normal;background:var(--ink);color:var(--ink)}
+.exps{position:absolute;left:968px;top:906px;display:grid;gap:18px}
+.exp{position:relative;width:196px;height:196px;background:#fff;border:6px solid #fff;outline:2px solid var(--ink);box-shadow:8px 8px 0 rgba(18,21,18,.22);overflow:hidden}
+.exp .in{position:absolute;inset:0;overflow:hidden;background:var(--paper2)}
+.exp img{position:absolute}
+
+.exp .no{position:absolute;left:0;bottom:0;background:var(--ink);color:var(--paper);font:700 12px/1 var(--f-sans);padding:6px 8px;letter-spacing:.04em}
+.exp.ph .no{background:var(--or)}
+.s2-star{position:absolute;left:196px;top:560px;width:74px}
+.s2-film{position:absolute;left:1046px;top:0;width:200px;height:1700px;background:url(assets/fx/film_v.webp) 0 0/200px auto repeat-y;mix-blend-mode:multiply;opacity:.3;filter:grayscale(1) contrast(1.2)}
+.s2-burst{position:absolute;left:1100px;top:1030px;width:80px}
+
+body.capture{padding:0;background:#000}
+body.capture .app{max-width:none;display:block}
+body.capture .app-head,body.capture .col-edit,body.capture .transport{display:none!important}
+body.capture .layout{display:block}
+body.capture .stage-wrap{width:1200px;height:1700px;aspect-ratio:auto;border-radius:0}
+</style>
+
+</head>
+<body>
+<main class="app">
+  <header class="app-head">
+    <h1>대마과 요원 파일 <span>ver.2</span></h1>
+    <p>CHARACTER INTRO MOTION · 1200 × 1700 · 7s · TEMPLATE</p>
+  </header>
+
+  <div class="layout">
+    <div class="col-stage">
+      <div class="stage-wrap" id="stageWrap">
+        <div id="stage" aria-label="캐릭터 소개 모션 미리보기" role="img">
+          <div id="scenes"></div>
+          <div id="iris"></div>
+          <div id="glitch"><div class="gv ga"></div><div class="gv gb"></div></div>
+          <div id="frameline"></div>
+          <div class="strip top"><div class="holes"></div><div class="edge"></div></div>
+          <div class="strip bottom"><div class="holes"></div><div class="edge"></div></div>
+          <canvas id="fxd" width="1200" height="1700"></canvas>
+          <canvas id="fx" width="1200" height="1700"></canvas>
+          <div id="vignette"></div>
+          <div id="flicker"></div>
+          <div id="flash"></div>
+          <div id="fadeout"></div>
+        </div>
+        <div class="loading" id="loading">LOADING FILM…</div>
+      </div>
+      <div class="transport">
+        <button class="btn primary" id="playBtn" type="button" aria-label="일시정지"></button>
+        <button class="btn" id="restartBtn" type="button"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8a5 5 0 1 0 1.6-3.7"/><path d="M3 2.5v3h3"/></svg>처음부터</button>
+        <span class="time" id="timeLabel">00.00 / 7.00</span>
+        <label class="loop"><input type="checkbox" id="loopChk" checked> 반복</label>
+        <div class="scrub">
+          <input type="range" id="scrub" min="0" max="7" step="0.01" value="0" aria-label="재생 위치">
+          <div class="segs" id="segs"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-edit">
+      <div class="chars" id="chars"></div>
+      <details class="editor" id="editor" open>
+        <summary>캐릭터 데이터 <span>입력하면 바로 반영돼요 · 텍스트는 이 브라우저에 임시 저장</span></summary>
+        <div class="ed-body">
+          <div class="fields" id="fields"></div>
+          <div class="side">
+            <div class="field">
+              <h3>캐릭터 이미지 (배경 투명 PNG)</h3>
+              <div class="row-btns">
+                <span class="btn filebtn">이미지 바꾸기<input type="file" id="imgInput" accept="image/png,image/webp" aria-label="캐릭터 이미지"></span>
+                <button class="btn" type="button" id="autoFaceBtn">얼굴 자동 감지</button>
+              </div>
+            </div>
+            <div class="field">
+              <h3>얼굴 위치 · 클릭해서 지정</h3>
+              <div class="facepick" id="facepick"><canvas id="faceCanvas" width="140" height="300"></canvas></div>
+              <label for="faceSize" class="hint">얼굴 크기</label>
+              <input type="range" id="faceSize" min="0.02" max="0.2" step="0.001">
+            </div>
+            <div class="field">
+              <h3>표정 3컷 (마지막 장면)</h3>
+              <div class="exp-row" id="expRow"></div>
+              <p class="hint">비워두면 얼굴 크롭으로 자리만 잡아둬요.</p>
+            </div>
+            <div class="field">
+              <h3>템플릿 데이터</h3>
+              <div class="row-btns"><button class="btn" type="button" id="copyBtn">설정 JSON 복사</button></div>
+              <p class="status-line" id="statusLine" role="status"></p>
+              <textarea class="copybox" id="copyBox" hidden readonly aria-label="설정 JSON"></textarea>
+            </div>
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+</main>
+
+<script>
+/* =====================================================================
+   TEMPLATE DATA — 캐릭터를 추가할 때는 CHARACTERS 배열에 항목을 하나 더 넣으면 됩니다.
+   SERIES 는 4명 공통. tagline 은 실루엣 안을 흐르는 문구(한 줄에 하나, 한/영 섞어서).
+   face 좌표는 원본 이미지 기준 0~1 비율 [x, y, w, h]. 비워두면 자동 계산.
+   ===================================================================== */
+const SERIES = {
+  system: 'CALL OF CTHULHU 7TH',
+  scenario: 'REWIND SCENARIO', scenarioKo: '리와인드 시나리오',
+  lockupA: '전략사무국', lockupB: '대마과',
+  lockupSub: 'OFFICE OF STRATEGIC SERVICES\nSPECIAL OPERATIONS BRANCH',
+  branch: 'OSS · SPECIAL OPERATIONS BRANCH',
+  section: 'COUNTER-DEVIL SECTION',
+  date: '2026.10.31',
+  total: 4,
+  tagline: [
+    '에즈라 콜먼이 기억하거나 기억되며',
+    'WHERE EZRA COLEMAN REMEMBERS, OR IS REMEMBERED',
+    '배커널 터너가 수면 위에서 제대로 된 숨을 쉬고',
+    'WHERE BACCHANAL TURNER DRAWS A TRUE BREATH ABOVE THE WATER',
+    '쵸소카베 유토가 인과를 끊어내는 세계로부터',
+    'FROM A WORLD WHERE CHOSOKABE YUTO SEVERS CAUSE AND EFFECT',
+  ],
+};
+const CHARACTERS = [{
+  id: 'calvin', file: '000', kind: 'KPC',
+  image: 'assets/characters/calvin.webp',
+  nameKo: '캘빈 브래들리', nameEn: 'Calvin Bradley',
+  age: '32', height: '184cm', weight: '76kg',
+  gender: '시스젠더 남성', affiliation: '미전략사무국 대마과',
+  rank: '공작부 대마과 요원',
+  quote: '필요한 일인가요?',
+  // 아래 항목은 지금 화면에는 쓰이지 않지만 캐릭터 기록으로 보관
+  tag: '계약 · 기록의 악마 (?)',
+  face: [0.4237, 0.0838, 0.2013, 0.0644],
+  expressions: ['assets/characters/calvin_exp1.webp', 'assets/characters/calvin_exp2.webp', 'assets/characters/calvin_exp3.webp'],
+}, {
+  id: 'alva', file: '004', kind: 'PC4',
+  image: 'assets/characters/alva.webp',
+  nameKo: '알바 린드버그', nameEn: 'Alva Lindberg',
+  age: '34', height: '173cm', weight: '66kg',
+  gender: '시스젠더 여성', affiliation: '미전략사무국 대마과',
+  rank: '공작부 대마과 요원',
+  quote: '움직이지 마. 안 아프게 해줄 테니까….',
+  tag: '',
+  face: [0.4762, 0.0425, 0.2135, 0.084],
+  expressions: [null, null, null],
+}, {
+  id: 'chiqui', file: '001', kind: 'PC1',
+  image: 'assets/characters/chiqui.webp',
+  nameKo: '치키 린드버그', nameEn: 'Chiqui Lindberg',
+  age: '27', height: '163cm', weight: '48kg',
+  gender: '시스젠더 여성', affiliation: '미전략사무국 대마과',
+  rank: '공작부 대마과 요원',
+  quote: '포기하는 게 어때요?',
+  tag: '',
+  face: [0.4043, 0.0952, 0.1544, 0.072],
+  expressions: ['assets/characters/chiqui_exp1.webp', 'assets/characters/chiqui_exp2.webp', 'assets/characters/chiqui_exp3.webp'],
+}, {
+  id: 'ethan', file: '003', kind: 'PC3',
+  image: 'assets/characters/ethan.webp',
+  nameKo: '에단 밀리언', nameEn: 'Ethan Million',
+  age: '26', height: '187cm', weight: '82kg',
+  gender: '시스젠더 남성', affiliation: '미전략사무국 대마과',
+  rank: '공작부 대마과 요원',
+  quote: '명령만 내려줘요!',
+  tag: '',
+  face: [0.4677, 0.0709, 0.162, 0.0663],
+  expressions: ['assets/characters/ethan_exp1.webp', 'assets/characters/ethan_exp2.webp', 'assets/characters/ethan_exp3.webp'],
+}];
+</script>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const W = 1200, H = 1700, FPS = 30;
+const GROUP = location.hash.includes('group'), CAPTURE = location.hash.includes('capture');
+let DURATION = GROUP ? 4.3 : 7;
+const T_GLG = 3.45;
+const T_SIL = .95, T_ART = 2.5, T_SPOT = 2.82, T_GL = 3.3, T_PRO = 4.1;
+const SCENES = [
+  { id: 's0', label: '슬레이트', t: 0 },
+  { id: 's1', label: '종이 실루엣', t: T_SIL },
+  { id: 's2', label: '프로필', t: T_PRO },
+];
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const chars = s => [...String(s ?? '')];
+function rnd(a, b = 0) { let h = Math.imul(a | 0, 0x27d4eb2d) ^ Math.imul((b | 0) + 0x9e37, 0x165667b1); h = Math.imul(h ^ (h >>> 15), 0x85ebca6b); h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35); h ^= h >>> 16; return (h >>> 0) / 4294967296; }
+const pad2 = n => String(n).padStart(2, '0');
+const pad3 = n => String(n).padStart(3, '0');
+
+/* ---------------- state + storage ---------------- */
+const STORE_KEY = 'oss-file-template-v8';
+const baseTemplate = JSON.parse(JSON.stringify(CHARACTERS[0]));
+let roster = CHARACTERS.map(c => JSON.parse(JSON.stringify(c)));
+try {
+  const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+  if (saved && Array.isArray(saved.roster)) {
+    saved.roster.forEach(sc => {
+      const i = roster.findIndex(r => r.id === sc.id);
+      const img = (sc.image && !String(sc.image).startsWith('blob:')) ? sc.image : null;
+      const merged = { ...(i >= 0 ? roster[i] : baseTemplate), ...sc, image: img || (i >= 0 ? roster[i].image : baseTemplate.image) };
+      merged.expressions = (merged.expressions || []).map(e => (e && String(e).startsWith('blob:')) ? null : e);
+      if (i >= 0) roster[i] = merged; else roster.push(merged);
+    });
+  }
+  if (saved && Array.isArray(saved.tagline)) SERIES.tagline = saved.tagline;
+} catch (e) { /* storage unavailable: work from defaults */ }
+function persist() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify({ tagline: SERIES.tagline, roster: roster.map(r => ({ ...r, image: String(r.image).startsWith('blob:') ? null : r.image })) })); } catch (e) {}
+}
+let cur = 0;
+
+/* ---------------- image analysis + derived art ---------------- */
+const artCache = new Map();
+function mk(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return { c, g: c.getContext('2d', { willReadFrequently: true }) }; }
+function toURL(c, type = 'image/png', q) { return new Promise(r => c.toBlob(b => r(URL.createObjectURL(b)), type, q)); }
+async function loadImg(src) { const im = new Image(); im.src = src; await im.decode(); return im; }
+async function prepareArt(src) {
+  if (artCache.has(src)) return artCache.get(src);
+  const img = await loadImg(src);
+  const nw = img.naturalWidth, nh = img.naturalHeight, ar = nw / nh;
+  const AH = 600, AW = Math.max(1, Math.round(AH * ar));
+  const a = mk(AW, AH); a.g.drawImage(img, 0, 0, AW, AH);
+  const ad = a.g.getImageData(0, 0, AW, AH).data;
+  let x0 = AW, y0 = AH, x1 = 0, y1 = 0;
+  for (let y = 0; y < AH; y++) for (let x = 0; x < AW; x++) if (ad[(y * AW + x) * 4 + 3] > 40) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  if (x1 < x0) { x0 = 0; y0 = 0; x1 = AW - 1; y1 = AH - 1; }
+  const bbox = { x: x0 / AW, y: y0 / AH, w: (x1 - x0 + 1) / AW, h: (y1 - y0 + 1) / AH };
+  const fy0 = Math.round((bbox.y + .07 * bbox.h) * AH), fy1 = Math.round((bbox.y + .14 * bbox.h) * AH);
+  let sx = 0, n = 0;
+  for (let y = fy0; y < fy1; y++) for (let x = 0; x < AW; x++) if (ad[(y * AW + x) * 4 + 3] > 40) { sx += x; n++; }
+  const cx = n ? sx / n / AW : bbox.x + bbox.w / 2;
+  const fh = .07 * bbox.h, fw = fh * 1.05 / ar;
+  const autoFace = [cx - fw / 2, bbox.y + .07 * bbox.h, fw, fh];
+  // derived layers at a moderate size: silhouette mask, dark shadow, white outline
+  const PH = 2000, PW = Math.round(PH * ar), P = 22, R = 13;
+  const cw = PW + 2 * P, chh = PH + 2 * P;
+  const tint = (col) => { const s = mk(cw, chh); s.g.drawImage(img, P, P, PW, PH); s.g.globalCompositeOperation = 'source-in'; s.g.fillStyle = col; s.g.fillRect(0, 0, cw, chh); return s; };
+  const sil = tint('#fff'), dark = tint('#2a140a');
+  const ol = mk(cw, chh);
+  for (const r of [R * .5, R]) for (let k = 0; k < 24; k++) { const an = k / 24 * Math.PI * 2; ol.g.drawImage(sil.c, Math.cos(an) * r, Math.sin(an) * r); }
+  const [mask, shadow, outline] = await Promise.all([toURL(sil.c), toURL(dark.c), toURL(ol.c)]);
+  const art = { src, img, nw, nh, ar, bbox, autoFace, PH, PAD: P, mask, shadow, outline };
+  artCache.set(src, art);
+  return art;
+}
+function figBox(art, top, figH, cx) {
+  const h = figH / art.bbox.h, w = h * art.ar;
+  return { left: cx - (art.bbox.x + art.bbox.w / 2) * w, top: top - art.bbox.y * h, w, h };
+}
+function setBox(el, b) { el.style.left = b.left + 'px'; el.style.top = b.top + 'px'; el.style.width = b.w + 'px'; el.style.height = b.h + 'px'; }
+function setDerived(el, b, art) { const p = art.PAD * b.h / art.PH; setBox(el, { left: b.left - p, top: b.top - p, w: b.w + 2 * p, h: b.h + 2 * p }); }
+function cropInto(img, art, box, pad, cw, ch) {
+  const [bx, by, bw, bh] = box;
+  const s = Math.max(cw / (bw * art.nw * pad), ch / (bh * art.nh * pad));
+  img.style.width = art.nw * s + 'px'; img.style.height = art.nh * s + 'px';
+  img.style.left = (cw / 2 - (bx + bw / 2) * art.nw * s) + 'px';
+  img.style.top = (ch / 2 - (by + bh / 2) * art.nh * s) + 'px';
+}
+function faceOf(ch, art) { return (ch.face && ch.face.length === 4) ? ch.face : art.autoFace; }
+
+/* ---------------- timeline helpers ---------------- */
+let tl = null, typers = [], dyn = {};
+function typer(el, text) { const o = { el, text: chars(text), v: 0, n: -1 }; typers.push(o); return o; }
+function type(o, at, dur) { tl.fromTo(o, { v: 0 }, { v: 1, duration: dur ?? Math.max(.12, o.text.length * .026), ease: 'none' }, at); }
+
+// pre-composited backgrounds (poster montage + collage + halftone + tint baked flat)
+const POSTERS = ['sil_bg_1', 'sil_bg_2', 'sil_bg_3', 'sil_bg_4', 'sil_bg_5'];
+
+/* ---------------- build stage DOM for a character ---------------- */
+function buildDOM(ch, art) {
+  const face = faceOf(ch, art), S = SERIES, kind = ch.kind || 'PC';
+  const sysHTML = s => esc(s).replace(/^C/, '<span class="g">C</span>').replace(/7/, '<span class="o">7</span>');
+  const tag = (S.tagline || []).filter(Boolean);
+  const lines = Array.from({ length: 46 }, (_, i) => {
+    const txt = tag.length ? tag[i % tag.length] : ch.nameEn;
+    const en = /^[\x00-\x7F]*$/.test(txt);
+    const s = (txt + '   /   ').repeat(en ? 3 : 4);
+    return `<span class="ln ${en ? 'en' : ''} ${i % 4 === 1 ? 'o' : ''}">${esc(s)}</span>`;
+  }).join('');
+  const [scA, ...scB] = String(S.scenario || '').split(' ');
+  const info = [['성별', ch.gender], ['소속', ch.affiliation], ['나이', ch.age], ['키', ch.height], ['몸무게', ch.weight]].filter(r => r[1]);
+  const enLines = tag.filter(l => /^[\x00-\x7F]*$/.test(l));
+  const NM = ch.nameEn.toUpperCase();
+  const red = n => `<i>${'█'.repeat(n)}</i>`;
+  const decoHTML = [
+    `<p class="t">${enLines.map(esc).join('<br>')}</p>`,
+    `<p>THIS FILE IS THE PROPERTY OF THE OFFICE OF STRATEGIC SERVICES. REPRODUCTION, IN WHOLE OR IN PART, IS PROHIBITED WITHOUT WRITTEN CONSENT OF THE ${esc(S.section)}. SUBJECT ${esc(NM)}, FILE ${esc(ch.file)}, IS LISTED AS ACTIVE PERSONNEL OF THE SPECIAL OPERATIONS BRANCH. RECORDS PRIOR TO ASSIGNMENT ARE HELD UNDER SEAL ${red(9)} AND MAY NOT BE CITED IN FIELD REPORTS.</p>`,
+    `<p>ALL CONTRACT LEDGERS, WITNESS STATEMENTS AND RECOVERED REELS ARE FILED UNDER CASE ${esc(ch.file)}-${esc(S.date.replace(/\./g, ''))}. FOOTAGE MAY BE REWOUND; THE SCENE MAY NOT BE RESHOT. ANY DISCREPANCY BETWEEN THE REEL AND THE RECORD IS TO BE REPORTED TO ${red(6)} WITHIN TWENTY-FOUR HOURS. DO NOT DISCUSS THIS FILE OUTSIDE THE SECTION.</p>`,
+    `<p>${esc(NM)} · ${esc(ch.kind || 'PC')} · ${esc(S.branch)} · CLEARANCE ${red(4)} · STATUS ACTIVE · REEL 03 / TAKE 03 · ${esc(S.date)}</p>`,
+  ].join('');
+  const exps = [0, 1, 2].map(i => {
+    const e = (ch.expressions || [])[i];
+    return `<div class="exp ${e ? '' : 'ph'}"><div class="in"><img alt="" data-exp="${i}" src="${esc(e || art.src)}"></div></div>`;
+  }).join('');
+  const nameSpans = chars(ch.nameKo).map(c => `<span>${c === ' ' ? '&nbsp;' : esc(c)}</span>`).join('');
+
+  $('#scenes').innerHTML = `
+  <section class="scene" id="s0">
+    <div class="s0bg"><img src="assets/bg/slate_bg.webp" alt="" style="position:absolute;inset:0;width:100%;height:100%"></div>
+    <div class="clap">
+      <img class="clap-board" src="assets/fx/clap_board.webp" alt="">
+      <span class="ck" data-ck="prod" style="left:320px;top:262px"></span>
+      <span class="ck" data-ck="scene" style="left:176px;top:382px"></span>
+      <span class="ck" data-ck="take" style="left:384px;top:356px"></span>
+      <span class="ck" data-ck="dir" style="left:278px;top:434px"></span>
+      <span class="ck" data-ck="cam" style="left:272px;top:482px"></span>
+      <span class="ck" data-ck="date" style="left:292px;top:536px"></span>
+      <img class="clap-arm" src="assets/fx/clap_arm.webp" alt="">
+    </div>
+  </section>
+
+  <section class="scene" id="s1">
+    <div class="s1cam" id="s1cam">
+      ${POSTERS.map(n => `<div class="poster" style="background-image:url(assets/bg/${n}.webp)"></div>`).join('')}
+      <div class="bigtype">
+        <div class="bt" style="left:-30px;top:30px">FILE</div>
+        <div class="bt o" style="right:-70px;top:500px">${esc(ch.file)}</div>
+        <div class="bt p" style="left:-40px;top:1000px">${esc(kind)}</div>
+        <div class="bt o v" style="left:1236px;top:20px">${esc(ch.nameEn.split(' ')[0].toUpperCase())}</div>
+      </div>
+      <div class="neg negA" style="left:0;top:250px;transform:rotate(-7deg)"><img src="assets/fx/neg_a.webp" alt=""><img src="assets/fx/neg_a.webp" alt=""></div>
+      <div class="neg negB" style="left:0;top:1160px;transform:rotate(5deg)"><img src="assets/fx/neg_b.webp" alt=""><img src="assets/fx/neg_b.webp" alt=""></div>
+      <div class="s1wash"></div>
+      <div class="paper-sil" id="paperSil">
+        <img class="psh" alt=""><img class="pedge" alt="">
+        <div class="sil sil-fill" style="background-image:url(assets/fx/paper.webp)">
+          <div class="stream">${lines}</div>
+          <div class="crease" style="background-image:url(assets/fx/paper_hp.webp)"></div>
+        </div>
+        <img class="silart" src="${esc(art.src)}" alt="">
+        <div class="gfill"></div>
+      </div>
+    </div>
+    <div class="spot"></div>
+    <div class="gscene"><div class="gbg"></div><div class="gfill"></div></div>
+    <div class="s1tex a" style="background-image:url(assets/fx/paper.webp)"></div>
+    <div class="s1tex b" style="background-image:url(assets/fx/paper_hp.webp)"></div>
+  </section>
+
+  <section class="scene paper" id="s2">
+    <div class="fill grid-bg"></div>
+    <div class="bar barA"></div>
+    <div class="bar barB"><div class="ghost"><img src="${esc(art.src)}" alt=""></div></div>
+    <div class="bigtype">
+      <div class="bt rw" style="left:-30px;top:470px">${esc(scA)}</div>
+      <div class="bt rw" style="left:-30px;top:740px">${esc(scB.join(' '))}</div>
+    </div>
+    <div class="s2-film"></div>
+    <div class="qmark">“</div>
+    <div class="quotev" data-t="quote"></div>
+    <div class="kpcbig">${esc(kind)}</div>
+    <div class="kname">${ch.nameEn.toUpperCase().split(' ').map(w => `<b>${esc(w)}</b>`).join('')}<span>FILE ${esc(ch.file)}</span></div>
+    <div class="deco"><h5>${esc(S.scenario)} — CASE FILE ${esc(ch.file)}</h5>${decoHTML}</div>
+    <div class="s2-char"><img class="shadow" alt=""><img class="olc" alt=""><img class="col2" src="${esc(art.src)}" alt=""></div><div class="osil"></div><div class="gfill"></div>
+    <div class="exps">${exps}</div>
+    <div class="nameblk">
+      <span class="rank">${esc(ch.rank)}</span>
+      <div class="blk">
+        <div class="nk">${nameSpans}</div>
+        <svg viewBox="0 0 56 56" fill="none" stroke="#8A8D86" stroke-width="7" stroke-linecap="round"><path class="xs" d="M8 8 48 50" pathLength="1"/><path class="xs" d="M48 6 9 49" pathLength="1"/></svg>
+        <svg class="cur" viewBox="0 0 13 13"><path d="M1 1v10l3-3 2.5 4.5 1.8-1L5.8 7.2H10Z" fill="#fff"/></svg>
+      </div>
+      <div class="info">${info.map(([k, v]) => `<div class="irow"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`).join('')}</div>
+    </div>
+  </section>`;
+
+  /* S1: centred paper silhouette (small mask, baked shadow — no animated filters) */
+  const b1 = figBox(art, 70, 2900, 600);
+  { const fc = (faceOf(ch, art)[0] + faceOf(ch, art)[2] / 2) * b1.w; b1.left = 600 - fc; }
+  const fillEl = $('#s1 .sil-fill');
+  setDerived(fillEl, b1, art);
+  fillEl.style.webkitMaskImage = fillEl.style.maskImage = `url("${art.mask}")`;
+  const psh = $('#s1 .psh'); psh.src = art.shadow; setDerived(psh, { ...b1, left: b1.left + 26, top: b1.top + 30 }, art);
+  const ped = $('#s1 .pedge'); ped.src = art.shadow; setDerived(ped, { ...b1, left: b1.left + 3, top: b1.top + 3 }, art);
+  /* S2 profile */
+  const b2 = figBox(art, 90, 2050, 560);
+  const art1 = $('#s1 .silart'); setBox(art1, b1);
+  $$('.gfill').forEach(g => { g.style.webkitMaskImage = g.style.maskImage = `url("${art.mask}")`; });
+  $$('#s1 .gfill').forEach(g => setDerived(g, b1, art)); setDerived($('#s2 .gfill'), b2, art);
+  { const o = $('#s2 .osil'); o.style.webkitMaskImage = o.style.maskImage = `url("${art.mask}")`; setDerived(o, b2, art); }
+  const s2c = $('#s2 .s2-char');
+  setBox($('.col2', s2c), b2);
+  const olc = $('.olc', s2c); olc.src = art.outline; setDerived(olc, b2, art);
+  const shd = $('.shadow', s2c); shd.src = art.mask; setDerived(shd, { ...b2, left: b2.left + 16, top: b2.top + 12 }, art);
+  const gi = $('#s2 .ghost img'); cropInto(gi, art, face, 3.3, 790, 1290);
+  gi.style.left = (parseFloat(gi.style.left) + 170) + 'px'; gi.style.top = (parseFloat(gi.style.top) - 250) + 'px';
+  $$('#s2 .exp img').forEach(im => {
+    const i = +im.dataset.exp, e = (ch.expressions || [])[i];
+    if (e) im.style.cssText = 'left:0;top:0;width:100%;height:100%;object-fit:cover';
+    else cropInto(im, art, face, 1.5 + i * .12, 184, 184);
+  });
+  const edge = Array.from({ length: 16 }, (_, i) => `OSS SAFETY FILM <em>▸</em> ${pad2(i * 4 + 12)}A <em>✶</em> FILE ${ch.file} `).join('');
+  $$('.strip .edge').forEach(e => e.innerHTML = edge);
+
+  dyn = { art, ch, face, b1, b2, fx: { dark: 0, boost: 0, glitch: 0, ov: 0 }, iris: { on: 0, x: 600, y: 600, r: 2000 } };
+}
+
+/* ---------------- timeline (6s) ---------------- */
+function buildTimeline(ch, art) {
+  if (tl) tl.kill();
+  typers = [];
+  tl = gsap.timeline({ paused: true, defaults: { ease: 'power2.out' } });
+  const S0 = $('#s0'), S1 = $('#s1'), S2 = $('#s2');
+  gsap.set([S0, S1, S2], { autoAlpha: 0, y: 0, x: 0, clipPath: 'none' });
+  gsap.set(['#s1 .silart', '#s2 .s2-char'], { filter: 'none' });
+  gsap.set('#s1 .gscene', { autoAlpha: 0 });
+  gsap.set('#s2 .barB', { clipPath: 'polygon(526px 160px,526px 160px,390px 1450px,390px 1450px)' });
+  gsap.set('#s2 .barA', { clipPath: 'polygon(372px 380px,372px 380px,266px 1150px,266px 1150px)' });
+  gsap.set('#s2 .ghost', { opacity: 0 });
+  gsap.set('#s2 .osil', { opacity: 0 });
+  gsap.set('#s1cam', { scale: 1, transformOrigin: '600px 820px' });
+  gsap.set(['#flash', '#fadeout', '#flicker'], { opacity: 0 });
+  gsap.set('#frameline', { y: -40 });
+  gsap.set('.strip.top, .strip.bottom', { y: 0 });
+  const flash = (at, peak = .3, out = .12) => { tl.fromTo('#flash', { opacity: 0 }, { opacity: peak, duration: .03, ease: 'none', immediateRender: false }, at).to('#flash', { opacity: 0, duration: out, ease: 'power1.out' }, at + .03); };
+  const fxs = dyn.fx;
+
+  /* ===== slate (0 – .95) ===== */
+  tl.set(S0, { autoAlpha: 1, backgroundColor: 'rgba(11,13,11,1)' }, 0);
+  tl.fromTo('#s0 .s0bg', { opacity: 1 }, { opacity: 1, duration: .01 }, 0);
+  tl.fromTo(fxs, { dark: 1 }, { dark: 1, duration: .01 }, 0);
+  const clap = $('#s0 .clap'), arm = $('#s0 .clap-arm');
+  tl.fromTo(clap, { x: 0, y: -1200, rotation: -18, scale: 1.08 }, { y: 0, rotation: -5, scale: 1.08, duration: .38, ease: 'back.out(1.3)' }, .0);
+  tl.fromTo(arm, { rotation: 0 }, { rotation: -22, duration: .18 }, .22);
+  $$('#s0 .bt').forEach((el, i) => tl.fromTo(el, { x: (i % 2 ? 50 : -50), opacity: 0 }, { x: (i % 2 ? -20 : 20), opacity: 1, duration: .95, ease: 'power1.out' }, i * .025));
+  const ck = { prod: 'OSS FILE', scene: ch.file, take: '03', dir: SERIES.lockupB, cam: 'CAM 03', date: 'CLASSIFIED' };
+  Object.entries(ck).forEach(([k, v], i) => type(typer($(`[data-ck="${k}"]`), v), .3 + i * .035, .14));
+  tl.to(arm, { rotation: 11.5, duration: .06, ease: 'power4.in' }, .6);
+  flash(.66, .22, .1);
+  tl.to(clap, { keyframes: [{ y: 12, duration: .03 }, { y: -4, duration: .04 }, { y: 0, duration: .04 }] }, .66);
+  tl.to('#s0 .s0bg', { opacity: 0, duration: .1 }, T_SIL - .1);
+  tl.to(clap, { x: -560, y: 820, rotation: -34, scale: 1.5, duration: .22, ease: 'power3.in' }, T_SIL - .08);
+  tl.to(S0, { backgroundColor: 'rgba(11,13,11,0)', duration: .26, ease: 'power2.inOut' }, T_SIL);
+  tl.to(fxs, { dark: 0, duration: .24 }, T_SIL);
+  tl.set(S0, { autoAlpha: 0 }, T_SIL + .3);
+
+  /* ===== paper silhouette montage (.95 – 2.55), drawing on paper ground (2.55 – 3.55) ===== */
+  const D1 = T_ART - T_SIL, ROLL = T_PRO - T_SIL;
+  tl.set(S1, { autoAlpha: 1 }, T_SIL);
+  tl.fromTo(fxs, { boost: 0 }, { boost: .3, duration: .2 }, T_SIL);
+  tl.to(fxs, { boost: 0, duration: .3 }, T_ART);
+  tl.fromTo('#s1cam', { scale: 1.22 }, { scale: 1, duration: .7, ease: 'power3.out' }, T_SIL);
+  tl.fromTo('#paperSil', { y: 70 }, { y: 0, duration: .6, ease: 'power3.out' }, T_SIL);
+  const PS = $$('#s1 .poster'), step = (D1 + .1) / PS.length;
+  PS.forEach((el, i) => {
+    const at = T_SIL + i * step;
+    tl.fromTo(el, { opacity: 0 }, { opacity: 1, duration: i ? .12 : .01, ease: 'none', immediateRender: false }, at);
+    tl.fromTo(el, { x: 50, scale: 1.04 }, { x: -50, scale: 1, duration: step + .3, ease: 'none' }, at);
+  });
+  $$('#s1 .bt').forEach((el, i) => {
+    if (el.classList.contains('v')) tl.fromTo(el, { y: -80 }, { y: 90, duration: ROLL, ease: 'none' }, T_SIL);
+    else tl.fromTo(el, { x: (i % 2 ? 160 : -160) }, { x: (i % 2 ? -40 : 40), duration: ROLL, ease: 'power1.out' }, T_SIL);
+  });
+  tl.fromTo('#s1 .negA', { x: 0 }, { x: -1000, duration: ROLL, ease: 'none' }, T_SIL);
+  tl.fromTo('#s1 .negB', { x: -1400 }, { x: -400, duration: ROLL, ease: 'none' }, T_SIL);
+  const lnEls = $$('#s1 .stream .ln');
+  lnEls.forEach((el, i) => {
+    const dir = i % 2 ? 1 : -1, speed = 220 + rnd(i, 31) * 220, start = -rnd(i, 32) * 700 - 200;
+    tl.fromTo(el, { x: start }, { x: start + dir * speed * D1, duration: D1, ease: 'none' }, T_SIL);
+  });
+  tl.fromTo(lnEls, { opacity: 0 }, { opacity: 1, duration: .06, stagger: { each: .008 } }, T_SIL + .06);
+  // mood change: the montage drains to a quiet paper ground, the text falls away, the drawing appears
+  tl.fromTo('#s1 .s1wash', { opacity: 0 }, { opacity: 1, duration: .45, ease: 'power2.inOut', immediateRender: false }, T_ART - .05);
+  tl.to('#s1 .stream', { opacity: 0, duration: .22 }, T_ART);
+  tl.fromTo('#s1 .silart', { opacity: 0 }, { opacity: 1, duration: .3, ease: 'power1.inOut', immediateRender: false }, T_ART + .06);
+  tl.to(['#s1 .sil-fill', '#s1 .pedge'], { opacity: 0, duration: .2 }, T_ART + .22);
+  tl.fromTo('#s1 .s1tex', { opacity: (i, el) => el.classList.contains('a') ? .32 : .45 }, { opacity: (i, el) => el.classList.contains('a') ? .14 : .2, duration: .3, immediateRender: false }, T_ART);
+  tl.fromTo('#s1 .psh', { opacity: .55 }, { opacity: .3, duration: .3, immediateRender: false }, T_ART);
+
+  // a spotlight snaps on: feathered circle around the upper body, everything else drops into the dark
+  const { b1, b2 } = dyn, F = dyn.face;
+  const spx = b1.left + (F[0] + F[2] / 2) * b1.w, spy = b1.top + (F[1] + F[3] / 2) * b1.h + 250;
+  gsap.set('#s1 .spot', { left: spx, top: spy });
+  tl.fromTo('#s1 .spot', { opacity: 0, scale: 1.06 }, { opacity: 1, scale: 1, duration: .07, ease: 'power2.out', immediateRender: false }, T_SPOT);
+  tl.to('#s1 .s1tex', { opacity: .1, duration: .2 }, T_SPOT);
+
+  /* ===== transition: stop-motion glitch cut into the profile ===== */
+
+  // stop-motion glitch cut: 12 frames at 24fps, spotlight ↔ static ↔ profile, landing on the profile
+  // glitch beat: the spotlight pose stays, the character fills with clip B, the background turns to clip A; then stop-motion cut to the profile
+  const ir = dyn.iris, G0 = T_GL, fr = 1 / 24;
+  const seq = [
+    ['m', 0, 1, 0], ['m', -16, 2, 0], ['m', 10, 3, 0], ['s1', -24, 4, 1], ['m', 0, 5, 0], ['m', 22, 6, 1], ['m', 0, 7, 0],
+    ['blk', 0, 8, 1], ['m', -10, 9, 0], ['m', 0, 10, 0], ['m', 28, 11, 1], ['blk', 0, 12, 1], ['s2', -40, 13, 1],
+    ['m', 14, 14, 0], ['s2', 26, 15, 1], ['blk', 0, 16, 1], ['s2', -12, 17, 0], ['s2', 6, 0, 0], ['s2', 0, 0, 0],
+  ];
+  const GE = G0 + (seq.length - 2) * fr;
+  tl.set(['#s1 .silart', '#s2 .s2-char'], { filter: 'brightness(0)' }, G0);
+  tl.set('#s1 .silart', { filter: 'none' }, GE);
+  seq.forEach(([w, dx, g, ov], k) => {
+    const at = G0 + k * fr, s1on = w === 's1' || w === 'm';
+    tl.set(S1, { autoAlpha: s1on ? 1 : 0, x: s1on ? dx : 0 }, at);
+    tl.set('#s1 .gscene', { autoAlpha: w === 'm' ? 1 : 0 }, at);
+    tl.set(S2, { autoAlpha: w === 's2' ? 1 : 0, x: w === 's2' ? dx : 0 }, at);
+    tl.set(ir, { on: w === 'blk' ? 1 : 0, r: 0 }, at);
+    tl.set(fxs, { glitch: g, ov, dark: w === 'blk' ? 1 : (w === 'm' ? .55 : w === 's2' ? .35 : .5) }, at);
+  });
+  const GD = G0 + seq.length * fr;
+  tl.set(S1, { autoAlpha: 0, x: 0 }, GD);
+  tl.set('#s1 .gscene', { autoAlpha: 0 }, GD);
+  tl.set(S2, { autoAlpha: 1, x: 0 }, GD);
+  tl.set('#s2 .osil', { opacity: 1 }, GD);
+  tl.set('#s2 .s2-char', { filter: 'brightness(0)' }, GD);
+  tl.set('#s2 .s2-char', { filter: 'none' }, GD + .3);
+  tl.to('#s2 .osil', { opacity: 0, duration: .45, ease: 'power2.inOut' }, GD + .3);
+  tl.set(fxs, { glitch: 0, ov: 0 }, GD);
+  tl.to(fxs, { dark: 0, duration: .2 }, GD);
+  const P = T_PRO + .2;
+  tl.to('.strip.top', { y: -50, duration: .25, ease: 'power2.in' }, P - .1);
+  tl.to('.strip.bottom', { y: 50, duration: .25, ease: 'power2.in' }, P - .1);
+  tl.fromTo('#s2 .barB', { clipPath: 'polygon(526px 160px,526px 160px,390px 1450px,390px 1450px)' }, { clipPath: 'polygon(526px 160px,1180px 160px,1044px 1450px,390px 1450px)', duration: .7, ease: 'expo.inOut', immediateRender: false }, P + .2);
+  tl.fromTo('#s2 .barA', { clipPath: 'polygon(372px 380px,372px 380px,266px 1150px,266px 1150px)' }, { clipPath: 'polygon(372px 380px,476px 380px,370px 1150px,266px 1150px)', duration: .5, ease: 'expo.inOut', immediateRender: false }, P + .32);
+  tl.fromTo('#s2 .ghost', { opacity: 0, scale: 1.1 }, { opacity: .32, scale: 1, duration: .9, immediateRender: false }, P + .5);
+  tl.to('#s2 .ghost', { scale: 1.03, duration: DURATION - P - 1.4, ease: 'none' }, P + 1.4);
+  $$('#s2 .bt.rw').forEach((el, i) => tl.fromTo(el, { opacity: 0, x: i ? 100 : -100 }, { opacity: 1, x: i ? -20 : 20, duration: DURATION - P - .3, ease: 'power2.out' }, P + .3));
+    tl.fromTo('#s2 .s2-film', { opacity: 0 }, { opacity: .3, duration: .4 }, P + .3);
+  tl.fromTo('#s2 .kpcbig', { y: 120, opacity: 0 }, { y: 0, opacity: 1, duration: .45, ease: 'expo.out' }, P + .55);
+  tl.fromTo('#s2 .kname > *', { x: -30, opacity: 0 }, { x: 0, opacity: 1, duration: .32, stagger: .06, ease: 'power3.out' }, P + .68);
+  tl.fromTo('#s2 .qmark', { scale: .3, opacity: 0, transformOrigin: '50% 30%' }, { scale: 1, opacity: 1, duration: .3, ease: 'back.out(2)' }, P + .7);
+  type(typer($('[data-t="quote"]'), ch.quote || ''), P + .8, .6);
+  tl.fromTo('#s2 .rank', { clipPath: 'polygon(0 0,0% 0,0% 100%,0 100%)' }, { clipPath: 'polygon(0 0,100% 0,calc(100% - 15px) 100%,0 100%)', duration: .2 }, P + .8);
+  tl.fromTo('#s2 .blk', { scaleX: 0, transformOrigin: '0% 50%' }, { scaleX: 1, duration: .24, ease: 'power3.out' }, P + .86);
+  tl.fromTo('#s2 .nk span', { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: .3, ease: 'back.out(1.6)', stagger: .03 }, P + .94);
+  tl.fromTo('#s2 .xs', { strokeDasharray: 1, strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: .12, stagger: .08, ease: 'power2.in' }, P + 1.2);
+  tl.fromTo('#s2 .cur', { opacity: 0 }, { opacity: 1, duration: .08 }, P + 1.36);
+  tl.fromTo('#s2 .info', { borderTopColor: 'rgba(18,21,18,0)' }, { borderTopColor: 'rgba(18,21,18,1)', duration: .15 }, P + 1.05);
+  tl.fromTo('#s2 .irow', { x: -22, opacity: 0 }, { x: 0, opacity: 1, duration: .24, stagger: .05, ease: 'power3.out' }, P + 1.1);
+  tl.fromTo('#s2 .exp', { rotationY: 90, transformPerspective: 800, opacity: 0 }, { rotationY: 0, opacity: 1, duration: .32, ease: 'back.out(1.5)', stagger: .07 }, P + .95);
+  tl.fromTo('#s2 .deco', { clipPath: 'inset(0% 100% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: .6, ease: 'power2.inOut' }, P + 1.2);
+  tl.set({}, {}, DURATION);
+}
+
+
+/* ================= GROUP CUT (#group): slate → 4-silhouette lineup → full glitch ================= */
+const GROUP_ORDER = ['calvin', 'chiqui', 'ethan', 'alva'];
+const HEIGHT_CM = r => parseFloat(r.height) || 175;
+async function activateGroup() {
+  const order = GROUP_ORDER.map(id => roster.find(r => r.id === id)).filter(Boolean);
+  const arts = await Promise.all(order.map(r => prepareArt(r.image)));
+  const gch = { ...order[0], file: 'ALL', kind: 'PC', nameEn: 'Rewind Agents', nameKo: '대마과' };
+  buildDOM(gch, arts[0]);
+  // replace the single paper silhouette with a lineup, heights to scale, feet on one line
+  const lines = $('#s1 .stream').innerHTML;
+  const tallest = Math.max(...order.map(HEIGHT_CM)), FEET = 1640, HMAX = 1480, GAP = 70;
+  let x = 0;
+  const members = order.map((r, i) => {
+    const art = arts[i], h = HMAX * HEIGHT_CM(r) / tallest;
+    const visW = h / art.bbox.h * art.ar * art.bbox.w;
+    const cx = x + visW / 2; x += visW + GAP;
+    return { r, art, b: figBox(art, FEET - h, h, cx), cx };
+  });
+  const ps = $('#paperSil');
+  ps.innerHTML = `<div class="lineup" style="position:absolute;inset:0">${members.map((m, i) => `<div class="lm"><img class="psh" alt=""><div class="sil sil-fill" style="background-image:url(assets/fx/paper.webp)"><div class="stream">${lines}</div><div class="crease" style="background-image:url(assets/fx/paper_hp.webp)"></div></div></div>`).join('')}</div>`;
+  $$('#paperSil .lm').forEach((el, i) => {
+    const { art, b } = members[i];
+    const f = $('.sil-fill', el); setDerived(f, b, art); f.style.webkitMaskImage = f.style.maskImage = `url("${art.mask}")`;
+    const sh = $('.psh', el); sh.src = art.shadow; setDerived(sh, { ...b, left: b.left + 22, top: b.top + 26 }, art);
+    $('.stream', el).style.top = `${-i * 7}%`;
+  });
+  dyn.lineup = { first: members[0].cx, last: members[members.length - 1].cx };
+  buildGroupTimeline(gch);
+  await loadFonts(gch);
+  t = 0; render(0);
+}
+function buildGroupTimeline(ch) {
+  if (tl) tl.kill();
+  typers = [];
+  tl = gsap.timeline({ paused: true, defaults: { ease: 'power2.out' } });
+  const S0 = $('#s0'), S1 = $('#s1'), S2 = $('#s2');
+  gsap.set([S0, S1, S2], { autoAlpha: 0, y: 0, x: 0, clipPath: 'none' });
+  gsap.set('#s1 .gscene', { autoAlpha: 0 });
+  gsap.set('#s1cam', { scale: 1, transformOrigin: '600px 820px' });
+  gsap.set(['#flash', '#fadeout', '#flicker'], { opacity: 0 });
+  gsap.set('#frameline', { y: -40 });
+  gsap.set('.strip.top, .strip.bottom', { y: 0 });
+  const flash = (at, peak = .3, out = .12) => { tl.fromTo('#flash', { opacity: 0 }, { opacity: peak, duration: .03, ease: 'none', immediateRender: false }, at).to('#flash', { opacity: 0, duration: out, ease: 'power1.out' }, at + .03); };
+  const fxs = dyn.fx;
+  /* slate — identical to the single-character cut */
+  tl.set(S0, { autoAlpha: 1, backgroundColor: 'rgba(11,13,11,1)' }, 0);
+  tl.fromTo('#s0 .s0bg', { opacity: 1 }, { opacity: 1, duration: .01 }, 0);
+  tl.fromTo(fxs, { dark: 1 }, { dark: 1, duration: .01 }, 0);
+  const clap = $('#s0 .clap'), arm = $('#s0 .clap-arm');
+  tl.fromTo(clap, { x: 0, y: -1200, rotation: -18, scale: 1.08 }, { y: 0, rotation: -5, scale: 1.08, duration: .38, ease: 'back.out(1.3)' }, .0);
+  tl.fromTo(arm, { rotation: 0 }, { rotation: -22, duration: .18 }, .22);
+  $$('#s0 .bt').forEach((el, i) => tl.fromTo(el, { x: (i % 2 ? 50 : -50), opacity: 0 }, { x: (i % 2 ? -20 : 20), opacity: 1, duration: .95, ease: 'power1.out' }, i * .025));
+  const ck = { prod: 'OSS FILE', scene: 'ALL', take: '03', dir: SERIES.lockupB, cam: 'CAM 03', date: 'CLASSIFIED' };
+  Object.entries(ck).forEach(([k, v], i) => type(typer($(`[data-ck="${k}"]`), v), .3 + i * .035, .14));
+  tl.to(arm, { rotation: 11.5, duration: .06, ease: 'power4.in' }, .6);
+  flash(.66, .22, .1);
+  tl.to(clap, { keyframes: [{ y: 12, duration: .03 }, { y: -4, duration: .04 }, { y: 0, duration: .04 }] }, .66);
+  tl.to('#s0 .s0bg', { opacity: 0, duration: .1 }, T_SIL - .1);
+  tl.to(clap, { x: -560, y: 820, rotation: -34, scale: 1.5, duration: .22, ease: 'power3.in' }, T_SIL - .08);
+  tl.to(S0, { backgroundColor: 'rgba(11,13,11,0)', duration: .26, ease: 'power2.inOut' }, T_SIL);
+  tl.to(fxs, { dark: 0, duration: .24 }, T_SIL);
+  tl.set(S0, { autoAlpha: 0 }, T_SIL + .3);
+  /* lineup: background holds still, the four silhouettes travel past the camera left → right */
+  const D = T_GLG - T_SIL;
+  tl.set(S1, { autoAlpha: 1 }, T_SIL);
+  tl.fromTo(fxs, { boost: 0 }, { boost: .3, duration: .2 }, T_SIL);
+  const PS = $$('#s1 .poster'), step = (D + .1) / PS.length;
+  PS.forEach((el, i) => tl.fromTo(el, { opacity: 0 }, { opacity: 1, duration: i ? .14 : .01, ease: 'none', immediateRender: false }, T_SIL + i * step));
+  const L = dyn.lineup;
+  tl.fromTo('#paperSil .lineup', { x: 600 - L.first + 160 }, { x: 600 - L.last - 60, duration: D + .1, ease: 'power1.inOut' }, T_SIL);
+  const lnEls = $$('#s1 .stream .ln');
+  lnEls.forEach((el, i) => {
+    const dir = i % 2 ? 1 : -1, speed = 160 + rnd(i, 31) * 160, start = -rnd(i, 32) * 700 - 200;
+    tl.fromTo(el, { x: start }, { x: start + dir * speed * D, duration: D, ease: 'none' }, T_SIL);
+  });
+  tl.fromTo('#s1 .stream', { opacity: 0 }, { opacity: 1, duration: .15 }, T_SIL + .05);
+  /* full-frame glitch cut, ending on black */
+  const ir = dyn.iris, fr = 1 / 24, G0 = T_GLG;
+  const seq = [['s1', -30, 1], ['s1', 24, 2], ['blk', 0, 3], ['s1', 46, 4], ['s1', -12, 5], ['blk', 0, 6], ['s1', -40, 7], ['blk', 0, 8],
+    ['s1', 18, 9], ['blk', 0, 10], ['blk', 0, 11], ['s1', 60, 12], ['blk', 0, 13], ['blk', 0, 14], ['blk', 0, 0]];
+  seq.forEach(([w, dx, g], k) => {
+    const at = G0 + k * fr;
+    tl.set(S1, { autoAlpha: w === 's1' ? 1 : 0, x: w === 's1' ? dx : 0 }, at);
+    tl.set(ir, { on: w === 'blk' ? 1 : 0, r: 0 }, at);
+    tl.set(fxs, { glitch: g, ov: g ? 1 : 0, dark: w === 'blk' ? 1 : .5, boost: 0 }, at);
+  });
+  tl.set({}, {}, DURATION);
+}
+
+/* ---------------- per-frame (time-derived) rendering ---------------- */
+const fxc = $('#fx'), fx = fxc.getContext('2d');
+const fxdc = $('#fxd'), fxd = fxdc.getContext('2d');
+const grain = [0, 1, 2].map(k => {
+  const n = mk(220, 220), im = n.g.createImageData(220, 220);
+  for (let i = 0; i < 220 * 220; i++) { const v = 128 + (rnd(i, k * 7 + 3) - .5) * 150; im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = v; im.data[i * 4 + 3] = 255; }
+  n.g.putImageData(im, 0, 0); return fx.createPattern(n.c, 'repeat');
+});
+const grainD = [0, 1, 2].map(k => {
+  const n = mk(240, 240), im = n.g.createImageData(240, 240);
+  for (let i = 0; i < 240 * 240; i++) { const r = rnd(i, k * 13 + 501); const v = r > .55 ? Math.pow((r - .55) / .45, 1.6) * 210 : 0; im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = v; im.data[i * 4 + 3] = 255; }
+  n.g.putImageData(im, 0, 0); return fxd.createPattern(n.c, 'repeat');
+});
+function drawFx(t) {
+  const f = Math.floor(t * 24);
+  fx.clearRect(0, 0, W, H);
+  const bo = dyn.fx ? dyn.fx.boost : 0;
+  fx.save(); fx.globalAlpha = Math.min(1, .6 + bo); fx.translate(-Math.floor(rnd(f, 1) * 220), -Math.floor(rnd(f, 2) * 220)); fx.fillStyle = grain[f % 3]; fx.fillRect(0, 0, W + 440, H + 440); fx.restore();
+  const nd = rnd(f, 3) < .5 + bo ? 1 + Math.floor(rnd(f, 4) * (3 + bo * 12)) : 0;
+  fx.fillStyle = 'rgba(8,10,8,.8)';
+  for (let i = 0; i < nd; i++) { const x = rnd(f, 10 + i) * W, y = rnd(f, 20 + i) * H, r = .9 + rnd(f, 30 + i) * 2.4; fx.beginPath(); fx.ellipse(x, y, r, r * (.5 + rnd(f, 40 + i)), rnd(f, 50 + i) * 3, 0, Math.PI * 2); fx.fill(); }
+  if (rnd(f, 5) < .1) { const x = rnd(f, 6) * W; fx.strokeStyle = 'rgba(255,255,250,.75)'; fx.lineWidth = 1.2; fx.beginPath(); fx.moveTo(x, 0); fx.lineTo(x + (rnd(f, 7) - .5) * 12, H); fx.stroke(); }
+  const dk = dyn.fx ? dyn.fx.dark : 0;
+  fxdc.style.opacity = dk.toFixed(3);
+  if (dk > 0) {
+    fxd.clearRect(0, 0, W, H);
+    fxd.save(); fxd.globalAlpha = .9; fxd.translate(-Math.floor(rnd(f, 91) * 240), -Math.floor(rnd(f, 92) * 240)); fxd.fillStyle = grainD[f % 3]; fxd.fillRect(0, 0, W + 480, H + 480); fxd.restore();
+    fxd.fillStyle = 'rgba(240,236,226,.85)';
+    const nn = 3 + Math.floor(rnd(f, 93) * 9);
+    for (let i = 0; i < nn; i++) { const x = rnd(f, 100 + i) * W, y = rnd(f, 120 + i) * H, r = .8 + rnd(f, 140 + i) * 3.4; fxd.beginPath(); fxd.ellipse(x, y, r, r * (.4 + rnd(f, 160 + i)), rnd(f, 180 + i) * 3, 0, Math.PI * 2); fxd.fill(); }
+    fxd.strokeStyle = 'rgba(240,236,226,.6)'; fxd.lineWidth = 1.4;
+    for (let i = 0; i < 2; i++) if (rnd(f, 200 + i) < .5) { const x = rnd(f, 210 + i) * W; fxd.beginPath(); fxd.moveTo(x, 0); fxd.lineTo(x + (rnd(f, 220 + i) - .5) * 16, H); fxd.stroke(); }
+    if (rnd(f, 230) < .35) { const x = rnd(f, 231) * W, y = rnd(f, 232) * H; fxd.beginPath(); fxd.moveTo(x, y); fxd.bezierCurveTo(x + 20, y + 10, x - 10, y + 30, x + 14 + rnd(f, 233) * 30, y + 46); fxd.stroke(); }
+  }
+}
+function afterSeek(t) {
+  for (const o of typers) { const n = Math.round(o.v * o.text.length); if (n !== o.n) { o.n = n; o.el.textContent = o.text.slice(0, n).join(''); } }
+  $$('.strip .holes').forEach(e => e.style.backgroundPosition = `${-(t * 110 % 40)}px 0`);
+  $$('.strip .edge').forEach(e => e.style.transform = `translateX(${-(t * 110 % 1120)}px)`);
+  // paper + collage: gentle stop-motion (6fps), position/tilt only — nothing swaps or re-filters
+  if (t > T_SIL - .1 && t < (GROUP ? T_GLG : T_ART)) {
+    const k = Math.floor(t * 6), ps = $('#paperSil');
+    if (ps) {
+      ps.style.translate = `${((rnd(k, 81) - .5) * 6).toFixed(1)}px ${((rnd(k, 82) - .5) * 6).toFixed(1)}px`;
+      ps.style.rotate = `${((rnd(k, 83) - .5) * .7).toFixed(2)}deg`;
+      $('#s1 .psh').style.translate = `${((rnd(k, 84) - .5) * 6).toFixed(1)}px ${((rnd(k, 85) - .5) * 6).toFixed(1)}px`;
+    }
+  }
+  const gl = dyn.fx ? dyn.fx.glitch : 0, ov = dyn.fx ? dyn.fx.ov : 0, ge = $('#glitch');
+  if (gl) {
+    const ig = (gl * 7 + 3) % 16;
+    $$('.gfill').forEach((g, n) => { g.style.display = 'block'; g.style.backgroundPosition = `${((ig + n * 5) % 16) / 15 * 100}% 0`; });
+    const gb = $('#s1 .gbg'); if (gb) { gb.style.backgroundPosition = `${((gl * 5) % 16) / 15 * 100}% 0`; gb.style.transform = `scale(${rnd(gl, 81) > .5 ? -1.08 : 1.08}, 1.08) translateY(${((rnd(gl, 82) - .5) * 140).toFixed(0)}px)`; }
+  } else if ($('.gfill') && $('.gfill').style.display !== 'none') $$('.gfill').forEach(g => g.style.display = 'none');
+  if (gl && ov) {
+    ge.style.display = 'block';
+    const a = $('.ga', ge), b = $('.gb', ge);
+    const ia = (gl * 5 + 2) % 16, ib = (gl * 3 + 7) % 16;
+    a.style.backgroundPosition = `${-ia * 1200}px 0`; b.style.backgroundPosition = `${-ib * 1200}px 0`;
+    a.style.opacity = gl % 3 === 0 ? .35 : 1; b.style.opacity = GROUP ? (gl % 2 ? .95 : .55) : (gl % 2 ? .4 : .15);
+    const fl = rnd(gl, 77) > .5; a.style.transform = `scale(${fl ? -1 : 1}, 1) translateX(${((rnd(gl, 78) - .5) * 120).toFixed(0)}px)`;
+    b.style.transform = `scale(1.15) translateY(${((rnd(gl, 79) - .5) * 160).toFixed(0)}px)`;
+  } else if (ge.style.display !== 'none') ge.style.display = 'none';
+  const ir = dyn.iris, ie = $('#iris');
+  if (ir && ir.on) { const r = Math.max(0, ir.r); ie.style.display = 'block'; ie.style.background = `radial-gradient(circle at ${ir.x.toFixed(1)}px ${ir.y.toFixed(1)}px, transparent ${r.toFixed(1)}px, #0B0D0B ${(r + 1.5).toFixed(1)}px)`; }
+  else ie.style.display = 'none';
+  const sf = $('#s2 .s2-film'); if (sf) sf.style.backgroundPositionY = `${(t * 110).toFixed(1)}px`;
+  $$('#s2 .bar').forEach(e => e.style.backgroundPosition = `${t * 6}px ${-t * 4}px, ${t * 6}px ${-t * 4}px`);
+  const f12 = Math.floor(t * 12);
+  $('#scenes').style.transform = `translate(${((rnd(f12, 71) - .5) * .8).toFixed(2)}px,${((rnd(f12, 72) - .5) * .9).toFixed(2)}px)`;
+  $('#flicker').style.opacity = (rnd(f12, 73) * .012).toFixed(3);
+  drawFx(t);
+}
+
+/* ---------------- playback ---------------- */
+let t = 0, playing = false, loop = true, last = performance.now(), ready = false;
+const playBtn = $('#playBtn'), scrub = $('#scrub'), timeLabel = $('#timeLabel');
+const ICON_PLAY = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg>재생';
+const ICON_PAUSE = '<svg viewBox="0 0 16 16" fill="currentColor"><rect x="3.5" y="2.5" width="3" height="11"/><rect x="9.5" y="2.5" width="3" height="11"/></svg>일시정지';
+function updateBtn() { playBtn.innerHTML = playing ? ICON_PAUSE : ICON_PLAY; playBtn.setAttribute('aria-label', playing ? '일시정지' : '재생'); }
+function render(time) {
+  if (!tl) return;
+  tl.seek(time, false); afterSeek(time);
+  scrub.value = time.toFixed(2);
+  timeLabel.textContent = `${time.toFixed(2).padStart(5, '0')} / ${DURATION.toFixed(2)}`;
+  let si = 0; SCENES.forEach((s, i) => { if (time >= s.t) si = i; });
+  $$('.seg').forEach((b, i) => b.classList.toggle('on', i === si));
+}
+function frame(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  if (playing && ready) { t += dt; if (t >= DURATION) { if (loop) t %= DURATION; else { t = DURATION; playing = false; updateBtn(); } } render(t); }
+  requestAnimationFrame(frame);
+}
+playBtn.addEventListener('click', () => { if (!playing && t >= DURATION) t = 0; playing = !playing; updateBtn(); });
+$('#restartBtn').addEventListener('click', () => { t = 0; playing = true; updateBtn(); render(t); });
+scrub.addEventListener('input', () => { t = +scrub.value; playing = false; updateBtn(); render(t); });
+$('#loopChk').addEventListener('change', e => loop = e.target.checked);
+$('#segs').innerHTML = SCENES.map((s, i) => { const end = (SCENES[i + 1]?.t ?? DURATION); return `<button type="button" class="seg" style="flex:${(end - s.t).toFixed(2)}" data-t="${s.t}">${s.label}</button>`; }).join('');
+$$('.seg').forEach(b => b.addEventListener('click', () => { t = +b.dataset.t + .2; render(t); }));
+document.addEventListener('keydown', e => { if (e.target.closest('input,textarea')) return; if (e.code === 'Space') { e.preventDefault(); playBtn.click(); } });
+
+const wrap = $('#stageWrap'), stage = $('#stage');
+new ResizeObserver(() => { stage.style.transform = `scale(${wrap.clientWidth / W})`; }).observe(wrap);
+
+async function loadFonts(ch) {
+  const all = [ch.nameKo, ch.nameEn, ch.rank, ch.gender, ch.affiliation, ch.quote, '성별소속나이키몸무게', ...(SERIES.tagline || []), '표정0123456789', ...Object.values(SERIES).filter(v => typeof v === 'string')].join(' ');
+  const fams = ['italic 400 60px "Instrument Serif"', '400 60px "Instrument Serif"', '600 16px "Pretendard"', '700 16px "Pretendard"', '800 16px "Pretendard"', '900 16px "Pretendard"', '400 40px "Anton"', '400 14px "IBM Plex Mono"', '600 14px "IBM Plex Mono"'];
+  if (!document.fonts) return;
+  await Promise.race([Promise.all(fams.map(f => document.fonts.load(f, all).catch(() => {}))), new Promise(r => setTimeout(r, 5000))]);
+}
+
+let buildSeq = 0;
+async function activate(i, keepTime = false) {
+  const seq = ++buildSeq;
+  cur = i; const ch = roster[i];
+  renderChips(); fillEditor();
+  let art;
+  try { art = await prepareArt(ch.image); }
+  catch (e) { setStatus('이미지를 불러오지 못했어요. 배경이 투명한 PNG나 WEBP 파일을 올려 주세요.'); return; }
+  if (seq !== buildSeq) return;
+  buildDOM(ch, art);
+  buildTimeline(ch, art);
+  await loadFonts(ch);
+  if (seq !== buildSeq) return;
+  drawFacePick();
+  if (!keepTime) t = 0;
+  render(t);
+}
+let rebuildTimer = 0;
+function scheduleRebuild() { clearTimeout(rebuildTimer); rebuildTimer = setTimeout(() => { persist(); activate(cur, true); }, 350); }
+
+function renderChips() {
+  const el = $('#chars');
+  el.innerHTML = `<span class="lab">FILES</span>` + roster.map((r, i) => `<button type="button" class="chip ${i === cur ? 'on' : ''}" data-i="${i}" aria-pressed="${i === cur}"><b>${esc(r.file)}</b>${esc(r.nameKo || '이름 없음')}</button>`).join('')
+    + (roster.length < 8 ? `<button type="button" class="chip add" id="addChar">+ 새 캐릭터</button>` : '');
+  $$('.chip[data-i]', el).forEach(b => b.addEventListener('click', () => activate(+b.dataset.i)));
+  const add = $('#addChar'); if (add) add.addEventListener('click', () => {
+    const n = roster.length + 1;
+    roster.push({ ...JSON.parse(JSON.stringify(baseTemplate)), id: 'char-' + Date.now(), file: pad3(n), kind: 'PC', nameKo: '새 캐릭터', nameEn: 'New Agent', tag: '', quote: '', face: null, expressions: [null, null, null] });
+    persist(); activate(roster.length - 1);
+    setStatus('새 파일을 만들었어요. 캐릭터 이미지를 올리면 실루엣·크롭이 자동으로 다시 계산돼요.');
+  });
+}
+
+const FIELDS = [
+  ['nameKo', '이름 (한글)'], ['nameEn', '이름 (영문)'], ['file', '파일 번호'], ['kind', '구분 (PC / KPC)'],
+  ['gender', '성별'], ['affiliation', '소속'], ['age', '나이'], ['height', '키'], ['weight', '몸무게'],
+  ['rank', '이름 위 초록 라벨'], ['quote', '한마디 (프로필 세로 글)'],
+  ['tagline', '실루엣 안 문구 · 4명 공통 · 한 줄에 하나 (영문 줄은 프로필 문서 블록에도 들어가요)', 'area tall'],
+];
+function fieldValue(ch, k) { return k === 'tagline' ? (SERIES.tagline || []).join('\n') : (ch[k] ?? ''); }
+function fillEditor() {
+  const ch = roster[cur];
+  $('#fields').innerHTML = FIELDS.map(([k, label, kind = '']) => {
+    const id = 'f-' + k, val = fieldValue(ch, k), isArea = kind.includes('area');
+    return `<div class="field ${isArea ? 'wide' : ''}"><label for="${id}">${label}</label>${isArea ? `<textarea id="${id}" data-k="${k}" class="${kind.includes('tall') ? 'tall' : ''}">${esc(val)}</textarea>` : `<input id="${id}" data-k="${k}" value="${esc(val)}">`}</div>`;
+  }).join('');
+  $$('#fields [data-k]').forEach(inp => inp.addEventListener('input', () => {
+    const k = inp.dataset.k, ch = roster[cur];
+    if (k === 'tagline') SERIES.tagline = inp.value.split('\n').map(s => s.trim()).filter(Boolean);
+    else ch[k] = inp.value;
+    if (k === 'nameKo' || k === 'file') renderChipsSoft();
+    scheduleRebuild();
+  }));
+  $('#expRow').innerHTML = [0, 1, 2].map(i => `<span class="btn filebtn">${(ch.expressions || [])[i] ? '✓ ' : ''}표정 0${i + 1}<input type="file" accept="image/*" data-exp="${i}" aria-label="표정 0${i + 1} 이미지"></span>`).join('');
+  $$('#expRow input').forEach(inp => inp.addEventListener('change', () => {
+    const file = inp.files[0]; if (!file) return;
+    const ch = roster[cur]; ch.expressions = ch.expressions || [null, null, null];
+    ch.expressions[+inp.dataset.exp] = URL.createObjectURL(file);
+    activate(cur, true); setStatus(`표정 0${+inp.dataset.exp + 1}을 넣었어요. 업로드한 이미지는 새로고침하면 다시 올려야 해요.`);
+  }));
+}
+function renderChipsSoft() { const b = $(`.chip[data-i="${cur}"]`); if (b) b.innerHTML = `<b>${esc(roster[cur].file)}</b>${esc(roster[cur].nameKo || '이름 없음')}`; }
+$('#imgInput').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  const ch = roster[cur]; ch.image = URL.createObjectURL(file); ch.face = null;
+  activate(cur, true);
+  setStatus('이미지를 바꿨어요. 얼굴 위치를 자동으로 잡았으니 필요하면 미리보기를 클릭해 고쳐 주세요.');
+});
+$('#autoFaceBtn').addEventListener('click', () => { roster[cur].face = null; scheduleRebuild(); setStatus('얼굴 위치를 자동 감지로 되돌렸어요.'); });
+
+const fcv = $('#faceCanvas'), fg = fcv.getContext('2d');
+function drawFacePick() {
+  const art = dyn.art; if (!art) return;
+  const face = faceOf(roster[cur], art);
+  const Hh = $('#facepick').clientHeight || 300, Ww = Math.round(Hh * art.ar);
+  fcv.width = Ww * 2; fcv.height = Hh * 2; fcv.style.width = Ww + 'px'; fcv.style.height = Hh + 'px';
+  fg.setTransform(2, 0, 0, 2, 0, 0); fg.clearRect(0, 0, Ww, Hh); fg.drawImage(art.img, 0, 0, Ww, Hh);
+  fg.strokeStyle = '#B0D457'; fg.lineWidth = 1.5; fg.strokeRect(face[0] * Ww, face[1] * Hh, face[2] * Ww, face[3] * Hh);
+  $('#faceSize').value = face[3];
+}
+fcv.addEventListener('click', e => {
+  const art = dyn.art; if (!art) return;
+  const r = fcv.getBoundingClientRect(), nx = (e.clientX - r.left) / r.width, ny = (e.clientY - r.top) / r.height;
+  const ch = roster[cur], f = faceOf(ch, art);
+  ch.face = [nx - f[2] / 2, ny - f[3] / 2, f[2], f[3]]; drawFacePick(); scheduleRebuild();
+});
+$('#faceSize').addEventListener('input', e => {
+  const art = dyn.art; if (!art) return;
+  const ch = roster[cur], f = faceOf(ch, art), h = +e.target.value, w = h * (f[2] / f[3]);
+  const cx = f[0] + f[2] / 2, cy = f[1] + f[3] / 2; ch.face = [cx - w / 2, cy - h / 2, w, h]; drawFacePick(); scheduleRebuild();
+});
+
+function setStatus(msg) { $('#statusLine').textContent = msg; }
+$('#copyBtn').addEventListener('click', () => {
+  const ch = roster[cur];
+  const out = JSON.stringify({ series: { tagline: SERIES.tagline }, character: { ...ch, image: String(ch.image).startsWith('blob:') ? '(업로드한 이미지 파일을 따로 전달)' : ch.image, expressions: (ch.expressions || []).map(e => e ? (String(e).startsWith('blob:') ? '(업로드한 표정 이미지)' : e) : null), face: ch.face || (dyn.art ? dyn.art.autoFace.map(v => +v.toFixed(4)) : null) } }, null, 2);
+  const box = $('#copyBox'); box.value = out;
+  const ok = () => { box.hidden = true; setStatus('설정 JSON을 복사했어요.'); };
+  const fail = () => { box.hidden = false; box.focus(); box.select(); setStatus('자동 복사가 막혀 있어요. 아래 상자에서 선택된 내용을 직접 복사해 주세요.'); };
+  try { navigator.clipboard.writeText(out).then(ok, fail); } catch (e) { fail(); }
+});
+
+window.TEMPLATE = {
+  get duration() { return DURATION; }, fps: FPS, width: W, height: H, scenes: SCENES, ready: null,
+  renderAt(time) { playing = false; t = time; render(time); },
+  characters: () => roster.map(r => r.id),
+  select: (id) => activate(Math.max(0, roster.findIndex(r => r.id === id))),
+};
+if (CAPTURE) document.body.classList.add('capture');
+updateBtn();
+window.TEMPLATE.ready = (async () => {
+  if (GROUP) await activateGroup(); else await activate(0);
+  ready = true;
+  $('#loading').hidden = true;
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (CAPTURE) playing = false;
+  else if (reduce) { t = 5.8; playing = false; render(t); }
+  else playing = true;
+  updateBtn();
+  requestAnimationFrame(t2 => { last = t2; requestAnimationFrame(frame); });
+})();
+})();
+</script>
+
+</body>
+</html>
