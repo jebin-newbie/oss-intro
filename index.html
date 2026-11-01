@@ -245,6 +245,20 @@ body{font-family:var(--f-sans);padding-left:max(16px,env(safe-area-inset-left,0p
 .s2-film{position:absolute;left:1046px;top:0;width:200px;height:1700px;background:url(assets/fx/film_v.webp) 0 0/200px auto repeat-y;mix-blend-mode:multiply;opacity:.3;filter:grayscale(1) contrast(1.2)}
 .s2-burst{position:absolute;left:1100px;top:1030px;width:80px}
 
+/* export panel */
+.ex-body{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px 20px;padding:4px 16px 14px}
+.ex-col{display:grid;gap:8px;align-content:start}
+.ex-col h3{font:600 11px/1.3 var(--f-sans);color:var(--ui-muted);margin:0}
+.sel{appearance:auto;border:1px solid var(--ui-line);background:var(--ui-field);color:var(--ui-fg);border-radius:6px;padding:8px 9px;font:500 13px/1.2 var(--f-sans);width:100%;box-sizing:border-box}
+.ex-foot{display:grid;gap:6px;padding:0 16px 16px}
+.exprog{display:flex;align-items:center;gap:10px}
+.exprog .bar{flex:1;height:8px;border-radius:999px;background:var(--ui-line);overflow:hidden}
+.exprog .bar i{display:block;height:100%;width:0;background:var(--ui-accent);transition:width .15s linear}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.fields.series{padding:4px 16px 18px}
+body.exporting .transport,body.exporting .chars,body.exporting #editor,body.exporting #seriesEditor{pointer-events:none;opacity:.5}
+body.exporting .ex-body{pointer-events:none;opacity:.5}
+
 body.capture{padding:0;background:#000}
 body.capture .app{max-width:none;display:block}
 body.capture .app-head,body.capture .col-edit,body.capture .transport{display:none!important}
@@ -293,6 +307,46 @@ body.capture .stage-wrap{width:1200px;height:1700px;aspect-ratio:auto;border-rad
 
     <div class="col-edit">
       <div class="chars" id="chars"></div>
+      <details class="editor" id="exportPanel" open>
+        <summary>내보내기 <span>MP4 · GIF · PNG — 서버 없이 이 브라우저에서 만들어요</span></summary>
+        <div class="ex-body">
+          <div class="ex-col">
+            <h3>이 캐릭터 · <span id="exWho"></span> · 7초</h3>
+            <div class="row-btns">
+              <button class="btn primary" type="button" id="exMp4" data-mp4>MP4</button>
+              <button class="btn" type="button" id="exGif">GIF</button>
+              <button class="btn" type="button" id="exPng">PNG</button>
+              <button class="btn" type="button" id="exJpg">JPG</button>
+            </div>
+          </div>
+          <div class="ex-col">
+            <h3>전원 · 인트로 → 프로필 4컷 → 2×2 · 약 15초</h3>
+            <div class="row-btns">
+              <button class="btn primary" type="button" id="exGroupMp4" data-mp4>MP4</button>
+              <button class="btn" type="button" id="exGroupGif">GIF</button>
+            </div>
+          </div>
+          <div class="ex-col">
+            <h3><label for="gifSize">GIF 크기</label></h3>
+            <select id="gifSize" class="sel">
+              <option value="360">360 × 510</option>
+              <option value="450">450 × 638</option>
+              <option value="540" selected>540 × 765</option>
+              <option value="720">720 × 1020</option>
+            </select>
+            <p class="hint" id="gifEst"></p>
+          </div>
+        </div>
+        <div class="ex-foot">
+          <div class="exprog" id="exProg" hidden><div class="bar"><i id="exBar"></i></div><button class="btn" type="button" id="exCancel">중단</button></div>
+          <p class="status-line" id="exMsg" role="status"></p>
+          <p class="hint" id="exNote">만드는 동안 미리보기가 프레임 단위로 움직여요. 완성되면 다운로드 폴더에 저장돼요. MP4는 Chrome·Edge에서 만들 수 있어요(Safari는 GIF·PNG만).</p>
+        </div>
+      </details>
+      <details class="editor" id="seriesEditor">
+        <summary>공통 설정 <span>4명 모두에 적용 · 소속 · 과 이름 · 시나리오</span></summary>
+        <div class="fields series" id="seriesFields"></div>
+      </details>
       <details class="editor" id="editor" open>
         <summary>캐릭터 데이터 <span>입력하면 바로 반영돼요 · 텍스트는 이 브라우저에 임시 저장</span></summary>
         <div class="ed-body">
@@ -366,7 +420,7 @@ const CHARACTERS = [{
   face: [0.4237, 0.0838, 0.2013, 0.0644],
   expressions: ['assets/characters/calvin_exp1.webp', 'assets/characters/calvin_exp2.webp', 'assets/characters/calvin_exp3.webp'],
 }, {
-  id: 'alva', file: '004', kind: 'PC4',
+  id: 'alva', file: '004', kind: 'PC2',
   image: 'assets/characters/alva.webp',
   nameKo: '알바 린드버그', nameEn: 'Alva Lindberg',
   age: '34', height: '173cm', weight: '66kg',
@@ -407,10 +461,13 @@ const CHARACTERS = [{
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const W = 1200, H = 1700, FPS = 30;
-const GROUP = location.hash.includes('group'), CAPTURE = location.hash.includes('capture');
-let DURATION = GROUP ? 4.3 : 7;
+const CAPTURE = location.hash.includes('capture');
+const DUR_SINGLE = 7, DUR_GROUP = 4.3;
+let GROUP = location.hash.includes('group');           // true while the stage holds the 4-person intro cut
+let DURATION = GROUP ? DUR_GROUP : DUR_SINGLE;
 const T_GLG = 3.45;
 const T_SIL = .95, T_ART = 2.5, T_SPOT = 2.82, T_GL = 3.3, T_PRO = 4.1;
+const T_LAND = T_GL + 19 / 24;                          // glitch cut lands on the orange silhouette (19 frames @24fps)
 const SCENES = [
   { id: 's0', label: '슬레이트', t: 0 },
   { id: 's1', label: '종이 실루엣', t: T_SIL },
@@ -423,11 +480,17 @@ const pad2 = n => String(n).padStart(2, '0');
 const pad3 = n => String(n).padStart(3, '0');
 
 /* ---------------- state + storage ---------------- */
-const STORE_KEY = 'oss-file-template-v8';
+const STORE_KEY = 'oss-file-template-v9', OLD_STORE_KEY = 'oss-file-template-v8';
+const SERIES_KEYS = ['tagline', 'lockupB', 'branch', 'section', 'scenario', 'date'];   // the shared values the editor can change
 const baseTemplate = JSON.parse(JSON.stringify(CHARACTERS[0]));
 let roster = CHARACTERS.map(c => JSON.parse(JSON.stringify(c)));
 try {
-  const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+  let saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+  if (!saved) {
+    // v8 → v9: Alva's slot was renamed PC4 → PC2; keep every other edit the owner made
+    saved = JSON.parse(localStorage.getItem(OLD_STORE_KEY) || 'null');
+    if (saved && Array.isArray(saved.roster)) saved.roster.forEach(sc => { if (sc.id === 'alva' && sc.kind === 'PC4') sc.kind = 'PC2'; });
+  }
   if (saved && Array.isArray(saved.roster)) {
     saved.roster.forEach(sc => {
       const i = roster.findIndex(r => r.id === sc.id);
@@ -438,9 +501,13 @@ try {
     });
   }
   if (saved && Array.isArray(saved.tagline)) SERIES.tagline = saved.tagline;
+  if (saved && saved.series) SERIES_KEYS.forEach(k => { if (saved.series[k] != null) SERIES[k] = saved.series[k]; });
 } catch (e) { /* storage unavailable: work from defaults */ }
 function persist() {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify({ tagline: SERIES.tagline, roster: roster.map(r => ({ ...r, image: String(r.image).startsWith('blob:') ? null : r.image })) })); } catch (e) {}
+  try {
+    const series = {}; SERIES_KEYS.forEach(k => series[k] = SERIES[k]);
+    localStorage.setItem(STORE_KEY, JSON.stringify({ series, roster: roster.map(r => ({ ...r, image: String(r.image).startsWith('blob:') ? null : r.image })) }));
+  } catch (e) {}
 }
 let cur = 0;
 
@@ -730,7 +797,7 @@ function buildTimeline(ch, art) {
     tl.set(ir, { on: w === 'blk' ? 1 : 0, r: 0 }, at);
     tl.set(fxs, { glitch: g, ov, dark: w === 'blk' ? 1 : (w === 'm' ? .55 : w === 's2' ? .35 : .5) }, at);
   });
-  const GD = G0 + seq.length * fr;
+  const GD = T_LAND;                                     // == G0 + seq.length * fr
   tl.set(S1, { autoAlpha: 0, x: 0 }, GD);
   tl.set('#s1 .gscene', { autoAlpha: 0 }, GD);
   tl.set(S2, { autoAlpha: 1, x: 0 }, GD);
@@ -770,9 +837,11 @@ function buildTimeline(ch, art) {
 const GROUP_ORDER = ['calvin', 'chiqui', 'ethan', 'alva'];
 const HEIGHT_CM = r => parseFloat(r.height) || 175;
 async function activateGroup() {
+  ++buildSeq;
   const order = GROUP_ORDER.map(id => roster.find(r => r.id === id)).filter(Boolean);
   const arts = await Promise.all(order.map(r => prepareArt(r.image)));
-  const gch = { ...order[0], file: 'ALL', kind: 'PC', nameEn: 'Rewind Agents', nameKo: '대마과' };
+  GROUP = true; DURATION = DUR_GROUP; syncDuration();
+  const gch = { ...order[0], file: 'ALL', kind: 'PC', nameEn: 'Rewind Agents', nameKo: SERIES.lockupB };
   buildDOM(gch, arts[0]);
   // replace the single paper silhouette with a lineup, heights to scale, feet on one line
   const lines = $('#s1 .stream').innerHTML;
@@ -943,18 +1012,19 @@ function render(time) {
   let si = 0; SCENES.forEach((s, i) => { if (time >= s.t) si = i; });
   $$('.seg').forEach((b, i) => b.classList.toggle('on', i === si));
 }
+function syncDuration() { scrub.max = DURATION; }
 function frame(now) {
   const dt = Math.min(.1, (now - last) / 1000); last = now;
-  if (playing && ready) { t += dt; if (t >= DURATION) { if (loop) t %= DURATION; else { t = DURATION; playing = false; updateBtn(); } } render(t); }
+  if (playing && ready && !EXPORT.busy) { t += dt; if (t >= DURATION) { if (loop) t %= DURATION; else { t = DURATION; playing = false; updateBtn(); } } render(t); }
   requestAnimationFrame(frame);
 }
-playBtn.addEventListener('click', () => { if (!playing && t >= DURATION) t = 0; playing = !playing; updateBtn(); });
-$('#restartBtn').addEventListener('click', () => { t = 0; playing = true; updateBtn(); render(t); });
-scrub.addEventListener('input', () => { t = +scrub.value; playing = false; updateBtn(); render(t); });
+playBtn.addEventListener('click', () => { if (EXPORT.busy) return; if (!playing && t >= DURATION) t = 0; playing = !playing; updateBtn(); });
+$('#restartBtn').addEventListener('click', () => { if (EXPORT.busy) return; t = 0; playing = true; updateBtn(); render(t); });
+scrub.addEventListener('input', () => { if (EXPORT.busy) return; t = +scrub.value; playing = false; updateBtn(); render(t); });
 $('#loopChk').addEventListener('change', e => loop = e.target.checked);
 $('#segs').innerHTML = SCENES.map((s, i) => { const end = (SCENES[i + 1]?.t ?? DURATION); return `<button type="button" class="seg" style="flex:${(end - s.t).toFixed(2)}" data-t="${s.t}">${s.label}</button>`; }).join('');
-$$('.seg').forEach(b => b.addEventListener('click', () => { t = +b.dataset.t + .2; render(t); }));
-document.addEventListener('keydown', e => { if (e.target.closest('input,textarea')) return; if (e.code === 'Space') { e.preventDefault(); playBtn.click(); } });
+$$('.seg').forEach(b => b.addEventListener('click', () => { if (EXPORT.busy) return; t = +b.dataset.t + .2; render(t); }));
+document.addEventListener('keydown', e => { if (e.target.closest('input,textarea,select') || EXPORT.busy) return; if (e.code === 'Space') { e.preventDefault(); playBtn.click(); } });
 
 const wrap = $('#stageWrap'), stage = $('#stage');
 new ResizeObserver(() => { stage.style.transform = `scale(${wrap.clientWidth / W})`; }).observe(wrap);
@@ -970,11 +1040,12 @@ let buildSeq = 0;
 async function activate(i, keepTime = false) {
   const seq = ++buildSeq;
   cur = i; const ch = roster[i];
-  renderChips(); fillEditor();
+  renderChips(); fillEditor(); $('#exWho').textContent = ch.nameKo || '이름 없음';
   let art;
   try { art = await prepareArt(ch.image); }
   catch (e) { setStatus('이미지를 불러오지 못했어요. 배경이 투명한 PNG나 WEBP 파일을 올려 주세요.'); return; }
   if (seq !== buildSeq) return;
+  GROUP = false; DURATION = DUR_SINGLE; syncDuration();
   buildDOM(ch, art);
   buildTimeline(ch, art);
   await loadFonts(ch);
@@ -1017,6 +1088,8 @@ function fillEditor() {
     if (k === 'tagline') SERIES.tagline = inp.value.split('\n').map(s => s.trim()).filter(Boolean);
     else ch[k] = inp.value;
     if (k === 'nameKo' || k === 'file') renderChipsSoft();
+    if (k === 'nameKo') $('#exWho').textContent = inp.value || '이름 없음';
+    if (k === 'affiliation') { const s = $('#s-affiliationAll'); if (s) s.value = commonAffiliation(); }
     scheduleRebuild();
   }));
   $('#expRow').innerHTML = [0, 1, 2].map(i => `<span class="btn filebtn">${(ch.expressions || [])[i] ? '✓ ' : ''}표정 0${i + 1}<input type="file" accept="image/*" data-exp="${i}" aria-label="표정 0${i + 1} 이미지"></span>`).join('');
@@ -1028,6 +1101,29 @@ function fillEditor() {
   }));
 }
 function renderChipsSoft() { const b = $(`.chip[data-i="${cur}"]`); if (b) b.innerHTML = `<b>${esc(roster[cur].file)}</b>${esc(roster[cur].nameKo || '이름 없음')}`; }
+
+/* ---------------- shared (series-wide) settings ---------------- */
+const SERIES_FIELDS = [
+  ['affiliationAll', '소속 · 전원 한 번에 바꾸기 (프로필 "소속" 줄)'],
+  ['lockupB', '과 이름 (슬레이트 DIR. 칸 · 전원 영상 · 페이지 제목)'],
+  ['scenario', '시나리오 영문 (프로필 뒤 큰 글자 · 문서 블록 제목)'],
+  ['branch', '문서 블록 · BRANCH'], ['section', '문서 블록 · SECTION'], ['date', '문서 블록 · 날짜'],
+];
+function commonAffiliation() { const v = roster.map(r => r.affiliation || ''); return v.every(x => x === v[0]) ? v[0] : ''; }
+function applyTitle() { $('.app-head h1').innerHTML = `${esc(SERIES.lockupB)} 요원 파일 <span>ver.2</span>`; document.title = `${SERIES.lockupB} 요원 파일`; }
+function fillSeriesEditor() {
+  $('#seriesFields').innerHTML = SERIES_FIELDS.map(([k, label]) => {
+    const val = k === 'affiliationAll' ? commonAffiliation() : (SERIES[k] ?? '');
+    return `<div class="field ${k === 'affiliationAll' || k === 'lockupB' ? 'wide' : ''}"><label for="s-${k}">${label}</label><input id="s-${k}" data-s="${k}" value="${esc(val)}" ${k === 'affiliationAll' ? 'placeholder="캐릭터마다 다르면 비어 있어요 · 입력하면 전원에 적용"' : ''}></div>`;
+  }).join('');
+  $$('#seriesFields [data-s]').forEach(inp => inp.addEventListener('input', () => {
+    const k = inp.dataset.s;
+    if (k === 'affiliationAll') { roster.forEach(r => r.affiliation = inp.value); const f = $('#f-affiliation'); if (f) f.value = inp.value; }
+    else { SERIES[k] = inp.value; if (k === 'lockupB') applyTitle(); }
+    scheduleRebuild();
+  }));
+}
+fillSeriesEditor(); applyTitle();
 $('#imgInput').addEventListener('change', e => {
   const file = e.target.files[0]; if (!file) return;
   const ch = roster[cur]; ch.image = URL.createObjectURL(file); ch.face = null;
@@ -1068,8 +1164,238 @@ $('#copyBtn').addEventListener('click', () => {
   try { navigator.clipboard.writeText(out).then(ok, fail); } catch (e) { fail(); }
 });
 
+/* =====================================================================
+   EXPORT — everything runs in the visitor's browser, no server.
+   The stage DOM is serialised into an SVG <foreignObject>, rasterised through an <img>
+   and drawn onto a canvas, then the grain / vignette / flash layers are composited on top.
+   Same engine paints both, so the export matches the preview pixel for pixel.
+   (The SVG must be a data: URL — a blob: URL taints the canvas in Chromium.)
+   MP4: WebCodecs H.264 + mp4-muxer.  GIF: gifenc.  PNG/JPG: the settled profile frame.
+   ===================================================================== */
+const EXPORT = { busy: false, cancel: false };
+const LIBS = { mp4: 'https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.1/build/mp4-muxer.mjs', gif: 'https://cdn.jsdelivr.net/npm/gifenc@1.0.3/dist/gifenc.esm.js' };
+const libCache = {};
+const loadLib = k => libCache[k] || (libCache[k] = import(LIBS[k]).catch(e => { delete libCache[k]; throw new Error(`라이브러리를 불러오지 못했어요 (${k}). 인터넷 연결을 확인해 주세요.`); }));
+const GIF_FPS = 12, GIF_COLORS = 128;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ----- DOM → SVG → canvas ----- */
+const dataCache = new Map();
+const URL_RE = /url\((?:&quot;|&apos;|['"])?([^'"&)]+)(?:&quot;|&apos;|['"])?\)/g, SRC_RE = / src="([^"]+)"/g;
+function asDataURL(url) {
+  if (!dataCache.has(url)) dataCache.set(url, fetch(url).then(r => { if (!r.ok) throw new Error(`${r.status} ${url}`); return r.blob(); })
+    .then(b => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(b); })));
+  return dataCache.get(url);
+}
+async function inlineURLs(text) {
+  const urls = [...new Set([...text.matchAll(URL_RE)].map(m => m[1]).concat([...text.matchAll(SRC_RE)].map(m => m[1])))].filter(u => !u.startsWith('data:'));
+  const map = {};
+  await Promise.all(urls.map(u => asDataURL(u).then(d => { map[u] = d; }, () => {})));
+  return text.replace(URL_RE, (m, u) => map[u] ? `url(${map[u]})` : m).replace(SRC_RE, (m, u) => map[u] ? ` src="${map[u]}"` : m);
+}
+let cssInlined = null;
+async function stageCSS() {
+  if (cssInlined) return cssInlined;
+  const sheets = await Promise.all($$('link[rel="stylesheet"]').map(l => fetch(l.href).then(r => r.text()).catch(() => '')));
+  cssInlined = await inlineURLs([...sheets, ...$$('style').map(s => s.textContent)].join('\n'));
+  return cssInlined;
+}
+const xmlEsc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+async function stageSVG() {
+  const clone = stage.cloneNode(true);
+  clone.style.transform = 'none';
+  ['#fx', '#fxd', '#vignette', '#flicker', '#flash', '#fadeout'].forEach(s => { const e = clone.querySelector(s); if (e) e.remove(); });
+  const html = await inlineURLs(new XMLSerializer().serializeToString(clone));
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><foreignObject width="${W}" height="${H}"><div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:${W}px;height:${H}px;overflow:hidden"><style>${xmlEsc(await stageCSS())}</style>${html}</div></foreignObject></svg>`;
+}
+const exCanvas = mk(W, H), snapImg = new Image();
+function overlayFx(ctx) {
+  const op = s => parseFloat(getComputedStyle($(s)).opacity) || 0;
+  ctx.save();
+  const dk = op('#fxd'); if (dk > 0) { ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = dk; ctx.drawImage(fxdc, 0, 0); }
+  ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .5; ctx.drawImage(fxc, 0, 0);
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  // #vignette: radial-gradient(ellipse at 50% 50%, transparent 60%, rgba(10,12,10,.26) 100%) — farthest-corner ellipse
+  const rx = W / 2 * Math.SQRT2, ry = H / 2 * Math.SQRT2;
+  ctx.translate(W / 2, H / 2); ctx.scale(1, ry / rx);
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx); g.addColorStop(.6, 'rgba(10,12,10,0)'); g.addColorStop(1, 'rgba(10,12,10,.26)');
+  ctx.fillStyle = g; ctx.fillRect(-W / 2, -H / 2 * rx / ry, W, H * rx / ry);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  [['#flicker', '#0b0d0b'], ['#flash', '#F4F2EC'], ['#fadeout', '#0B0D0B']].forEach(([s, c]) => { const o = op(s); if (o > 0) { ctx.globalAlpha = o; ctx.fillStyle = c; ctx.fillRect(0, 0, W, H); } });
+  ctx.restore();
+}
+async function snapshotStage(ctx) {
+  snapImg.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(await stageSVG());
+  await snapImg.decode();
+  ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  ctx.clearRect(0, 0, W, H); ctx.drawImage(snapImg, 0, 0); ctx.restore();
+  overlayFx(ctx);
+}
+async function captureAt(time) { render(time); await snapshotStage(exCanvas.g); }
+function download(blob, name) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+}
+const safeName = s => String(s).replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '_');
+const fileName = (ch, ext) => `${safeName(ch.file)}_${safeName(ch.nameEn || ch.nameKo || 'agent')}.${ext}`;
+
+/* ----- frame plans: a list of async steps, each leaves one frame on exCanvas ----- */
+function singlePlan(fps) {
+  const n = Math.round(DUR_SINGLE * fps), who = cur;
+  return Array.from({ length: n }, (_, i) => async () => { if (GROUP || cur !== who) await activate(who, true); await captureAt(i / fps); });
+}
+// group cut: #group intro → each profile from the orange-silhouette landing, 1.6× faster, 3-frame glitch stingers between → 2×2 grid → fade
+const G_INTRO_END = 4.1, G_SPEED = 1.6, G_PRO_END = 6.6, G_HOLD = .35, G_STING = 3 / 30, G_GRID = 2.6, G_FADE = .4;
+const groupSeconds = () => G_INTRO_END + GROUP_ORDER.length * (G_STING + (G_PRO_END - T_LAND) / G_SPEED + G_HOLD) + G_GRID;
+async function groupPlan(fps) {
+  const order = GROUP_ORDER.map(id => roster.findIndex(r => r.id === id)).filter(i => i >= 0);
+  if (!order.length) throw new Error('전원 영상에 넣을 캐릭터(calvin · chiqui · ethan · alva)를 찾지 못했어요.');
+  const [ga, gb] = await Promise.all([loadImg('assets/fx/glitch_a.webp'), loadImg('assets/fx/glitch_b.webp')]);
+  const cv = exCanvas.c, ctx = exCanvas.g, prev = mk(W, H), tiles = [], steps = [];
+  const keep = fn => async () => { await fn(); prev.g.drawImage(cv, 0, 0); };
+  for (let i = 0, n = Math.round(G_INTRO_END * fps); i < n; i++) steps.push(keep(async () => { if (!GROUP) await activateGroup(); await captureAt(i / fps); }));
+  order.forEach((idx, j) => {
+    for (let k = 0, n = Math.max(1, Math.round(G_STING * fps)); k < n; k++) steps.push(() => drawStinger(ctx, prev.c, ga, gb, j * 10 + k));
+    const times = [];
+    for (let tt = T_LAND; tt <= G_PRO_END; tt += G_SPEED / fps) times.push(tt);
+    for (let k = 1, n = Math.round(G_HOLD * fps); k <= n; k++) times.push(Math.min(DUR_SINGLE - .02, G_PRO_END + k / fps));
+    times.forEach((tt, k) => steps.push(keep(async () => {
+      if (GROUP || cur !== idx) await activate(idx, true);
+      await captureAt(tt);
+      if (k === times.length - 1) { tiles[j] = mk(W, H); tiles[j].g.drawImage(cv, 0, 0); }
+    })));
+  });
+  for (let f = 0, n = Math.round(G_GRID * fps); f < n; f++) steps.push(() => drawGrid(ctx, tiles, gb, f, fps, n));
+  return steps;
+}
+const cell = img => [img.naturalWidth / 16, img.naturalHeight];
+function drawStinger(ctx, prevC, ga, gb, k) {
+  const [aw, ah] = cell(ga), [bw, bh] = cell(gb);
+  ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  ctx.fillStyle = '#050605'; ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = .5; ctx.drawImage(prevC, (rnd(k, 301) - .5) * 60, 0);
+  for (let i = 0; i < 4; i++) { const y = rnd(k, 310 + i) * H, h = 20 + rnd(k, 320 + i) * 120, dx = (rnd(k, 330 + i) - .5) * 180; ctx.drawImage(prevC, 0, y, W, h, dx, y, W, h); }
+  ctx.globalCompositeOperation = 'screen';
+  ctx.globalAlpha = .85; ctx.drawImage(ga, ((k * 5 + 2) % 16) * aw, 0, aw, ah, (rnd(k, 341) - .5) * 120, 0, W, H);
+  ctx.globalAlpha = .6; ctx.drawImage(gb, ((k * 3 + 7) % 16) * bw, 0, bw, bh, -W * .075, (rnd(k, 342) - .5) * 160 - H * .075, W * 1.15, H * 1.15);
+  ctx.restore();
+  drawFx(k / 24); overlayFx(ctx);
+}
+function drawGrid(ctx, tiles, gb, f, fps, n) {
+  const [bw, bh] = cell(gb), GUT = 6, tw = W / 2 - GUT, th = H / 2 - GUT;
+  ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  ctx.fillStyle = '#0B0D0B'; ctx.fillRect(0, 0, W, H);
+  tiles.forEach((tile, j) => {
+    const at = Math.round((.1 + j * .14) * fps); if (!tile || f < at) return;
+    const x = (j % 2) * W / 2 + GUT / 2, y = Math.floor(j / 2) * H / 2 + GUT / 2, pop = f - at < 2;
+    ctx.save(); ctx.beginPath(); ctx.rect(x, y, tw, th); ctx.clip();
+    ctx.drawImage(tile.c, x + (pop ? (rnd(f, 400 + j) - .5) * 40 : 0), y, tw, th);
+    if (pop) { ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = .7; ctx.drawImage(gb, ((f * 3 + j * 5) % 16) * bw, 0, bw, bh, x, y, tw, th); }
+    ctx.restore();
+  });
+  ctx.restore();
+  drawFx(DUR_SINGLE + f / fps); overlayFx(ctx);
+  const fade0 = n - Math.round(G_FADE * fps);
+  if (f >= fade0) { ctx.save(); ctx.globalAlpha = Math.min(1, (f - fade0 + 1) / (n - fade0)); ctx.fillStyle = '#0B0D0B'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+}
+
+/* ----- encoders ----- */
+async function pickAvcConfig(fps) {
+  const base = { width: W, height: H, bitrate: 14e6, framerate: fps, avc: { format: 'avc' }, latencyMode: 'quality' };
+  for (const codec of ['avc1.640028', 'avc1.64002a', 'avc1.4d0028', 'avc1.42e028'])
+    for (const hw of ['no-preference', 'prefer-software']) {
+      const cfg = { ...base, codec, hardwareAcceleration: hw };
+      try { if ((await VideoEncoder.isConfigSupported(cfg)).supported) return cfg; } catch (e) {}
+    }
+  return null;
+}
+async function encodeMP4(steps, fps, name) {
+  if (!('VideoEncoder' in window)) throw new Error('이 브라우저는 MP4 인코딩(WebCodecs)을 지원하지 않아요. Chrome이나 Edge에서 열어 주세요.');
+  const [{ Muxer, ArrayBufferTarget }, cfg] = await Promise.all([loadLib('mp4'), pickAvcConfig(fps)]);
+  if (!cfg) throw new Error('이 브라우저에서 H.264 인코더를 쓸 수 없어요. Chrome이나 Edge에서 열어 주세요.');
+  const muxer = new Muxer({ target: new ArrayBufferTarget(), video: { codec: 'avc', width: W, height: H }, fastStart: 'in-memory' });
+  let encErr = null;
+  const enc = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: e => { encErr = e; } });
+  enc.configure(cfg);
+  try {
+    await captureAt(t);                                   // warm-up: fonts settle inside the snapshot document
+    const n = steps.length, us = 1e6 / fps;
+    for (let i = 0; i < n; i++) {
+      if (EXPORT.cancel) throw new Error('cancel');
+      if (encErr) throw encErr;
+      await steps[i]();
+      const vf = new VideoFrame(exCanvas.c, { timestamp: Math.round(i * us), duration: Math.round(us) });
+      enc.encode(vf, { keyFrame: i % (fps * 2) === 0 }); vf.close();
+      while (enc.encodeQueueSize > 3) await sleep(4);
+      progress(i + 1, n, 'MP4');
+    }
+    await enc.flush();
+  } finally { try { enc.close(); } catch (e) {} }
+  muxer.finalize();
+  download(new Blob([muxer.target.buffer], { type: 'video/mp4' }), name);
+}
+async function encodeGIF(steps, fps, name, gw) {
+  const { GIFEncoder, quantize, applyPalette } = await loadLib('gif');
+  const gh = Math.round(gw * H / W), g = mk(gw, gh);
+  g.g.imageSmoothingQuality = 'high'; g.g.filter = 'blur(.4px)';   // light denoise: the grain would otherwise bloat every frame
+  const gif = GIFEncoder(), n = steps.length, delay = Math.round(1000 / fps);
+  await captureAt(t);
+  for (let i = 0; i < n; i++) {
+    if (EXPORT.cancel) throw new Error('cancel');
+    await steps[i]();
+    g.g.drawImage(exCanvas.c, -1, -1, gw + 2, gh + 2);     // 1px overdraw keeps the blur from bleeding transparency at the edges
+    const { data } = g.g.getImageData(0, 0, gw, gh);
+    const palette = quantize(data, GIF_COLORS, { format: 'rgb444' });
+    gif.writeFrame(applyPalette(data, palette, 'rgb444'), gw, gh, { palette, delay });
+    progress(i + 1, n, 'GIF');
+    await sleep(0);
+  }
+  gif.finish();
+  download(new Blob([gif.bytes()], { type: 'image/gif' }), name);
+}
+async function exportStill(type, name) {
+  const who = cur; if (GROUP) await activate(who, true);
+  await captureAt(6.5);
+  const blob = await new Promise(r => exCanvas.c.toBlob(r, type, .92));
+  download(blob, name);
+}
+
+/* ----- UI ----- */
+const exMsg = $('#exMsg'), exBar = $('#exBar'), exProg = $('#exProg');
+function progress(i, n, label) { exBar.style.width = `${(i / n * 100).toFixed(1)}%`; exMsg.textContent = `${label} 만드는 중 · ${i} / ${n} 프레임`; }
+function gifWidth() { return +$('#gifSize').value || 540; }
+function updateGifEst() {
+  const w = gifWidth(), per = 14 * (w / 540) ** 2 / 7;    // ≈14MB for 540px × 7s at 12fps / 128 colours
+  $('#gifEst').textContent = `${w} × ${Math.round(w * H / W)} · ${GIF_FPS}fps · ${GIF_COLORS}색 · 예상 용량 — 이 캐릭터 ≈ ${Math.round(per * DUR_SINGLE)}MB · 전원 ≈ ${Math.round(per * groupSeconds())}MB`;
+}
+$('#gifSize').addEventListener('change', updateGifEst); updateGifEst();
+if (!('VideoEncoder' in window)) { $$('[data-mp4]').forEach(b => { b.disabled = true; b.title = 'Chrome · Edge에서 열어 주세요'; }); $('#exNote').textContent = '이 브라우저에는 MP4 인코더(WebCodecs)가 없어요. MP4는 Chrome이나 Edge에서 열어 만들어 주세요. GIF·PNG·JPG는 여기서도 돼요.'; }
+async function withExport(label, fn) {
+  if (EXPORT.busy || !ready) return;
+  EXPORT.busy = true; EXPORT.cancel = false;
+  const wasPlaying = playing, keepCur = cur, keepT = t;
+  playing = false; updateBtn();
+  document.body.classList.add('exporting'); exProg.hidden = false; exBar.style.width = '0%'; exMsg.textContent = `${label} 준비 중…`;
+  try { await fn(); exMsg.textContent = `${label} 완료 · 다운로드 폴더를 확인해 주세요.`; }
+  catch (e) { exMsg.textContent = EXPORT.cancel ? `${label} 만들기를 중단했어요.` : `${label} 실패 · ${e.message || e}`; if (!EXPORT.cancel) console.error(e); }
+  finally {
+    try { if (GROUP || cur !== keepCur) await activate(keepCur, true); } catch (e) {}
+    t = Math.min(keepT, DURATION); render(t); playing = wasPlaying; updateBtn();
+    document.body.classList.remove('exporting'); exProg.hidden = true; EXPORT.busy = false;
+  }
+}
+$('#exCancel').addEventListener('click', () => { EXPORT.cancel = true; });
+$('#exMp4').addEventListener('click', () => withExport('MP4', () => encodeMP4(singlePlan(FPS), FPS, fileName(roster[cur], 'mp4'))));
+$('#exGif').addEventListener('click', () => withExport('GIF', () => encodeGIF(singlePlan(GIF_FPS), GIF_FPS, fileName(roster[cur], 'gif'), gifWidth())));
+$('#exPng').addEventListener('click', () => withExport('PNG', () => exportStill('image/png', fileName(roster[cur], 'png'))));
+$('#exJpg').addEventListener('click', () => withExport('JPG', () => exportStill('image/jpeg', fileName(roster[cur], 'jpg'))));
+$('#exGroupMp4').addEventListener('click', () => withExport('전원 MP4', async () => encodeMP4(await groupPlan(FPS), FPS, `ALL_${safeName(SERIES.lockupB)}_group.mp4`)));
+$('#exGroupGif').addEventListener('click', () => withExport('전원 GIF', async () => encodeGIF(await groupPlan(GIF_FPS), GIF_FPS, `ALL_${safeName(SERIES.lockupB)}_group.gif`, gifWidth())));
+
 window.TEMPLATE = {
   get duration() { return DURATION; }, fps: FPS, width: W, height: H, scenes: SCENES, ready: null,
+  // export API (also handy from the console): await TEMPLATE.snapshot(canvas2dContext) draws the current frame
+  snapshot: snapshotStage, captureAt, groupSeconds,
   renderAt(time) { playing = false; t = time; render(time); },
   characters: () => roster.map(r => r.id),
   select: (id) => activate(Math.max(0, roster.findIndex(r => r.id === id))),
